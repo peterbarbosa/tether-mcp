@@ -20,12 +20,24 @@ export function diffLocks(before, after) {
   const changes = [];
   const add = (severity, type, fields) => changes.push({ severity, type, ...fields });
 
-  // Scope is checked first. Snapshots taken under different credentials are not
-  // comparable -- reporting 200 phantom removals because CI used a service
-  // account is exactly how a checker gets switched off.
+  // Scope is checked first, and it short-circuits. Snapshots taken under
+  // different credentials are not comparable -- reporting 200 phantom removals
+  // because CI used a service account is exactly how a checker gets switched
+  // off. Suppressing them only at render time is not enough: the counts and the
+  // exit code would still be driven by changes that were never real.
   const scopeMismatch =
     before.scope?.principalHint !== after.scope?.principalHint ||
     before.scope?.authMode !== after.scope?.authMode;
+
+  if (scopeMismatch) {
+    return {
+      connector: after.connector?.id ?? before.connector?.id,
+      scopeMismatch: true,
+      severity: null,
+      breaking: 0,
+      changes: []
+    };
+  }
 
   if (before.connector?.protocolVersion !== after.connector?.protocolVersion) {
     add(INFO, 'protocol_version_changed', {

@@ -1,5 +1,15 @@
 {
   "indexVersion": 1,
+  "roots": [
+    "commands",
+    "examples/skills",
+    "skills"
+  ],
+  "lockDigests": {
+    "deepwiki": "sha256:4f23832a68d5ceddffb02cc462da0db7b43252b6dbfcae72584bfa8e75f20b57",
+    "everything": "sha256:eefeda636fdefa74819014c45b8bba3e3ea5677fc693d24159e2a0c9b4c7a79a",
+    "tether": "sha256:b45874ca09799183adb430fc1c28589b12ffd520b82cf233dcd8233c8a06c974"
+  },
   "skills": [
     {
       "path": "commands/tether-check.md",

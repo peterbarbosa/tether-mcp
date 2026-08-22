@@ -141,7 +141,8 @@ test('an unallowlisted probe is skipped even under --dry-run', () => {
   const dir = fixture({ files: { 'skills/x/SKILL.md': IDENTIFIER_SKILL('list_teams') } });
   run(dir, ['index']);
   const r = run(dir, ['resolve', '--dry-run']);
-  assert.match(r.stdout, /Nothing was probed/);
+  assert.match(r.stdout, /Nothing could be confirmed/);
+  assert.match(r.stdout, /could not be checked/);
   assert.match(r.stdout, /allowlist/);
   cleanup(dir);
 });

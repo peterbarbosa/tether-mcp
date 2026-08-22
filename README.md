@@ -56,8 +56,13 @@ moved.
   - **Suggested edit:** pass `teamId` explicitly when calling `create_issue`; do not let the agent infer it
 ```
 
-Exit codes: `0` clean, `1` breaking drift, `2` a connector could not be reached.
-A checker that cannot reach a connector must never report all clear.
+Exit codes: `0` clean, `1` breaking drift, `2` **could not check**.
+
+That third one matters more than it looks. A connector that is unreachable, a
+connector named on the command line with no lockfile, a snapshot taken under
+different credentials — none of those are a pass, and none of them are a
+breakage. They are *no result*, and a checker that reports no result as all
+clear is worse than no checker.
 
 ## The two tiers of drift
 
@@ -144,6 +149,12 @@ to expose an `add` tool.
 
 `index` exits `1` if a skill declares a tool that exists in no lockfile.
 
+The index records the roots it scanned and a digest of the tool names it was
+built against. That makes a plain `tether index` reproducible — a re-run without
+flags reuses the recorded roots instead of silently dropping skills — and lets
+`check` warn you when the index has gone stale rather than joining drift against
+an out-of-date picture of the library.
+
 ### 3. Authorize probes — the safety story
 
 ```bash
@@ -177,7 +188,9 @@ the skill just does the wrong thing.
 - ⏭️ **billing-project** — skipped: `search_projects` is not on the probe allowlist.
 ```
 
-Exits `1` when an identifier no longer resolves.
+Exits `1` when an identifier no longer resolves, `2` when a probe errored and
+Tether could not find out. A skipped identifier is a reported refusal, not a
+failure, so it does not fail the build on its own.
 
 ## Safety
 
@@ -246,7 +259,9 @@ and a hash Tether did not compute cannot be trusted.
 **Snapshots are credential-scoped.** MCP allows a `tools/list` result to vary by
 the authorization presented. `principalHint` is a non-reversible digest of the
 credentials used — never the credential itself. If it doesn't match, Tether
-reports a *scope mismatch* rather than inventing hundreds of phantom removals.
+reports a *scope mismatch* rather than inventing hundreds of phantom removals — the
+comparison is abandoned before any change is computed, so the count and the exit
+code cannot be driven by drift that was never real. It exits 2.
 
 ## Three surfaces
 
@@ -292,6 +307,12 @@ whether the skill produces good output.
   detected.
 - Instance resolution needs a probe that enumerates. Servers that only return one
   prose blob are matched by substring and reported as low confidence.
+- If two connectors expose a tool with the same name, an undeclared skill that
+  mentions it is attributed to both. Declaring `connectors:` in the manifest
+  resolves the ambiguity.
+- `principalHint` is derived from credentials that appear in the MCP config.
+  A connector that authenticates out-of-band — a CLI already logged in — hashes
+  to nothing, so scope changes there are invisible.
 
 ## Building on it
 
@@ -300,7 +321,7 @@ TypeScript, no bundler — `npx tether-mcp` runs the source directly, so a domai
 team can fork and patch it without a toolchain.
 
 ```bash
-npm test    # 72 tests, no network required
+npm test    # 88 tests, no network required
 ```
 
 MIT.

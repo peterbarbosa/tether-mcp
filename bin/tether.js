@@ -9,7 +9,9 @@ import { loadConnectors } from '../src/config.js';
 import { snapshotConnector, withConnectors } from '../src/client.js';
 import { buildLock, writeLock, readLock, listLocked } from '../src/lock.js';
 import { diffLocks } from '../src/diff.js';
-import { buildIndex, writeIndex, readIndex, vocabularyFrom, findSkillFiles } from '../src/skills.js';
+import {
+  buildIndex, writeIndex, readIndex, vocabularyFrom, findSkillFiles, indexStaleness, SKILL_DIRS
+} from '../src/skills.js';
 import {
   loadAllowlist, isAllowed, proposeAllowlist, writeProposal, allowedCount, proposalPath, allowlistPath
 } from '../src/allowlist.js';
@@ -91,6 +93,9 @@ function emit(text) {
 /** Connectors to act on: those named on the command line, or all discovered. */
 function targets() {
   const all = loadConnectors(dir, values.config);
+  for (const { path, reason } of all.unreadable ?? []) {
+    note(`warning: could not read ${path} — ${reason}`);
+  }
   if (!selected.length) return all;
   const missing = selected.filter((id) => !all.some((c) => c.id === id));
   if (missing.length) fail(`unknown connector: ${missing.join(', ')}`);
@@ -128,6 +133,14 @@ async function check() {
   const locked = listLocked(dir);
   if (!locked.length) fail('no lockfiles in .tether/. Run `tether snapshot` first.');
 
+  // A named connector with no lockfile must not pass silently. Checking
+  // nothing and exiting 0 is exactly how a typo, or a connector someone forgot
+  // to snapshot, turns into a green build.
+  const unlocked = selected.filter((id) => !locked.includes(id));
+  if (unlocked.length) {
+    fail(`no lockfile for: ${unlocked.join(', ')}. Run \`tether snapshot ${unlocked.join(' ')}\` first.`);
+  }
+
   const reports = [];
   for (const id of locked) {
     if (selected.length && !selected.includes(id)) continue;
@@ -146,6 +159,9 @@ async function check() {
   }
 
   const index = readIndex(dir);
+  for (const reason of indexStaleness(index, vocabularyFrom(dir))) {
+    note(`warning: skill index is stale — ${reason}. Run \`tether index\`.`);
+  }
   emit(values.json ? renderJson(reports, index) : renderMarkdown(reports, index));
   process.exit(exitCode(reports));
 }
@@ -154,8 +170,12 @@ function index() {
   const vocabulary = vocabularyFrom(dir);
   if (!Object.keys(vocabulary).length) fail('no lockfiles in .tether/. Run `tether snapshot` first.');
 
-  const files = skillRoots() ? findSkillFiles(dir, skillRoots()) : undefined;
-  const built = buildIndex(dir, vocabulary, files);
+  // Roots come from the flag, else from the existing index, else the defaults.
+  // Reusing the recorded roots is what makes `tether index` reproducible: a
+  // plain re-run must not silently drop skills a previous run was told about.
+  const previous = readIndex(dir);
+  const roots = skillRoots() ?? previous?.roots ?? SKILL_DIRS;
+  const built = buildIndex(dir, vocabulary, findSkillFiles(dir, roots), roots);
   writeIndex(dir, built);
 
   const declared = built.skills.filter((s) => s.declared).length;

@@ -75,6 +75,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export function renderMarkdown(reports, index = null) {
   const breaking = count(reports, BREAKING);
   const warnings = count(reports, WARNING);
+  const uncheckable = reports.filter((r) => r.error || r.scopeMismatch).length;
   const lines = ['# Tether drift report', ''];
 
   if (!reports.length) {
@@ -82,14 +83,18 @@ export function renderMarkdown(reports, index = null) {
     return lines.join('\n');
   }
 
+  const compared = reports.length - uncheckable;
+  const suffix = uncheckable ? ` ${plural(uncheckable, 'connector')} could not be checked.` : '';
   lines.push(
     breaking
-      ? `**${plural(breaking, 'breaking change')}** across ${plural(reports.length, 'connector')}.`
+      ? `**${plural(breaking, 'breaking change')}** across ${plural(compared, 'connector')}.${suffix}`
       : warnings
-        ? `No breaking changes. ${plural(warnings, 'warning')} across ${plural(reports.length, 'connector')}.`
-        : reports.length === 1
-          ? 'No drift. 1 connector matches its lockfile.'
-          : `No drift. All ${reports.length} connectors match their lockfiles.`,
+        ? `No breaking changes. ${plural(warnings, 'warning')} across ${plural(compared, 'connector')}.${suffix}`
+        : compared === 0
+          ? `**Nothing could be checked.**${suffix}`
+          : compared === 1
+            ? `No drift. 1 connector matches its lockfile.${suffix}`
+            : `No drift. All ${compared} connectors match their lockfiles.${suffix}`,
     ''
   );
 
@@ -174,7 +179,10 @@ export const renderJson = (reports, index = null) =>
  * A checker that cannot reach a connector must not report "all clear".
  */
 export function exitCode(reports) {
-  if (reports.some((r) => r.error)) return 2;
+  // 2 covers everything Tether could not actually check. A scope mismatch
+  // belongs here: comparing snapshots taken under different credentials is not
+  // a clean result, it is no result.
+  if (reports.some((r) => r.error || r.scopeMismatch)) return 2;
   if (reports.some((r) => r.breaking > 0)) return 1;
   return 0;
 }
@@ -208,16 +216,28 @@ export function renderResolveMarkdown(results) {
     return lines.join('\n');
   }
 
-  const probed = results.length - skipped.length;
+  // An identifier whose probe errored was NOT confirmed. Counting it as
+  // resolved is the same false-green that `check` refuses to emit.
+  const errors = results.filter((r) => r.status === ERROR);
+  const confirmed = results.filter((r) => r.status === RESOLVED).length;
+  const unchecked = skipped.length + errors.length;
+
   lines.push(
     missing.length
       ? `**${plural(missing.length, 'identifier')} no longer resolve${missing.length === 1 ? 's' : ''}.** ` +
         'This is the silent tier: nothing errors, the skill just does the wrong thing.'
-      : probed
-        ? `All ${plural(probed, 'probed identifier')} still resolve.`
-        : `**Nothing was probed.** ${plural(skipped.length, 'identifier')} skipped — see below.`,
+      : confirmed
+        ? `${plural(confirmed, 'identifier')} still resolve${confirmed === 1 ? 's' : ''}.`
+        : '**Nothing could be confirmed.**',
     ''
   );
+  if (unchecked) {
+    lines.push(
+      `${plural(unchecked, 'identifier')} could not be checked ` +
+      `(${skipped.length} skipped, ${errors.length} errored).`,
+      ''
+    );
+  }
 
   for (const r of results) {
     const where = `${code(r.value)} via ${code(r.connector + '.' + (r.probe ?? '?'))}`;
@@ -252,7 +272,30 @@ export function renderResolveMarkdown(results) {
   return lines.join('\n');
 }
 
-export const renderResolveJson = (results) =>
-  JSON.stringify({ missing: results.filter((r) => r.status === MISSING).length, identifiers: results }, null, 2) + '\n';
+const tally = (results, status) => results.filter((r) => r.status === status).length;
 
-export const resolveExitCode = (results) => (results.some((r) => r.status === MISSING) ? 1 : 0);
+export const renderResolveJson = (results) =>
+  JSON.stringify(
+    {
+      missing: tally(results, MISSING),
+      resolved: tally(results, RESOLVED),
+      skipped: tally(results, SKIPPED),
+      errors: tally(results, ERROR),
+      identifiers: results
+    },
+    null,
+    2
+  ) + '\n';
+
+/**
+ * 1 = an identifier is genuinely gone. 2 = Tether could not find out.
+ *
+ * Mirrors `exitCode` for schema drift: not being able to check is never a pass.
+ * A skipped identifier is a deliberate, reported refusal rather than a failure,
+ * so it does not fail the build on its own.
+ */
+export function resolveExitCode(results) {
+  if (results.some((r) => r.status === MISSING)) return 1;
+  if (results.some((r) => r.status === ERROR)) return 2;
+  return 0;
+}

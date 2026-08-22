@@ -18,6 +18,7 @@ import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdirSy
 import { join, relative, sep } from 'node:path';
 import { readManifest } from './manifest.js';
 import { LOCK_DIR, listLocked, readLock } from './lock.js';
+import { digest } from './canonical.js';
 
 export const INDEX_VERSION = 1;
 export const indexPath = (dir) => join(dir, LOCK_DIR, 'index.json');
@@ -55,7 +56,7 @@ const inlineCodeTokens = (text) => {
  * Build the index. Pure apart from reading files.
  * `vocabulary` maps connector id -> Set of tool names, taken from the lockfiles.
  */
-export function buildIndex(dir, vocabulary, files = findSkillFiles(dir)) {
+export function buildIndex(dir, vocabulary, files = findSkillFiles(dir), roots = SKILL_DIRS) {
   const skills = files.map((file) => {
     const text = readFileSync(file, 'utf8');
     const manifest = readManifest(text);
@@ -106,7 +107,44 @@ export function buildIndex(dir, vocabulary, files = findSkillFiles(dir)) {
     };
   });
 
-  return { indexVersion: INDEX_VERSION, skills };
+  return {
+    indexVersion: INDEX_VERSION,
+    // Recorded so the index is reproducible. Without this, `tether index` run
+    // with different --skills flags silently produces a different index, and
+    // every consumer of it -- including the MCP server -- starts answering
+    // "no skills reference that tool" for skills that plainly do.
+    roots: [...roots].sort(),
+    // The lock state this index was built against, so `check` can warn when the
+    // index is stale rather than quietly joining drift against an out-of-date
+    // picture of the library.
+    lockDigests: Object.fromEntries(
+      Object.keys(vocabulary).sort().map((id) => [id, digestOfNames(vocabulary[id])])
+    ),
+    skills
+  };
+}
+
+/** A digest over a connector's tool names, for cheap staleness detection. */
+const digestOfNames = (names) => digest([...names].sort());
+
+/**
+ * Is this index still describing the current lockfiles?
+ * Returns human-readable reasons it is stale; empty means it is current.
+ */
+export function indexStaleness(index, vocabulary) {
+  if (!index) return [];
+  const reasons = [];
+  const recorded = index.lockDigests ?? {};
+  for (const id of Object.keys(vocabulary).sort()) {
+    if (!(id in recorded)) reasons.push(`connector "${id}" was locked after the index was built`);
+    else if (recorded[id] !== digestOfNames(vocabulary[id])) {
+      reasons.push(`connector "${id}" has changed tools since the index was built`);
+    }
+  }
+  for (const id of Object.keys(recorded)) {
+    if (!(id in vocabulary)) reasons.push(`connector "${id}" is in the index but no longer has a lockfile`);
+  }
+  return reasons;
 }
 
 /** connector id -> Set of tool names, from committed lockfiles. */
