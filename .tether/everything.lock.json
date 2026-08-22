@@ -1,0 +1,642 @@
+{
+  "lockfileVersion": 1,
+  "connector": {
+    "id": "everything",
+    "transport": "stdio",
+    "target": "npx -y @modelcontextprotocol/server-everything",
+    "serverInfo": {
+      "name": "mcp-servers/everything",
+      "version": "2.0.0"
+    }
+  },
+  "capabilities": {
+    "logging": {},
+    "completions": {},
+    "prompts": {
+      "listChanged": true
+    },
+    "resources": {
+      "subscribe": true,
+      "listChanged": true
+    },
+    "tools": {
+      "listChanged": true
+    },
+    "tasks": {
+      "list": {},
+      "cancel": {},
+      "requests": {
+        "tools": {
+          "call": {}
+        }
+      }
+    }
+  },
+  "scope": {
+    "authMode": "inherited",
+    "principalHint": null,
+    "complete": true
+  },
+  "digest": "sha256:fa8c49b76a60176275a1699911f05d9df54bb5d4b05156ffcd539f044d9ae7d4",
+  "tools": [
+    {
+      "name": "echo",
+      "digest": "sha256:b889ff1baa4d09b91dddb56e10b9220a7246cb060c553b862d2dfb45751062bb",
+      "title": "Echo Tool",
+      "description": "Echoes back the input string",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message to echo"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "message"
+        ],
+        "params": {
+          "message": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-annotated-message",
+      "digest": "sha256:46912c212ca5f7615c571dfde21e16fe2ce7cb742664d934038cfe40ee2cb4e3",
+      "title": "Get Annotated Message Tool",
+      "description": "Demonstrates how annotations can be used to provide metadata about content.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messageType": {
+            "type": "string",
+            "enum": [
+              "error",
+              "success",
+              "debug"
+            ],
+            "description": "Type of message to demonstrate different annotation patterns"
+          },
+          "includeImage": {
+            "default": false,
+            "description": "Whether to include an example image",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "messageType"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "messageType"
+        ],
+        "params": {
+          "includeImage": {
+            "type": "boolean",
+            "required": false
+          },
+          "messageType": {
+            "type": "string",
+            "required": true,
+            "enum": [
+              "error",
+              "success",
+              "debug"
+            ]
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-env",
+      "digest": "sha256:0f7bddfbb5ae48493140cb4db0784c0b54b74e44f1dd777514f59b5609e56533",
+      "title": "Print Environment Tool",
+      "description": "Returns all environment variables, helpful for debugging MCP server configuration",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {},
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-resource-links",
+      "digest": "sha256:6d4524e99bdf83f3c6e165324643ef9fbd99e4eac1f6e18c8df900b6e84d5869",
+      "title": "Get Resource Links Tool",
+      "description": "Returns up to ten resource links that reference different types of resources",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "default": 3,
+            "description": "Number of resource links to return (1-10)",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {
+          "count": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-resource-reference",
+      "digest": "sha256:582d5e44153801166d60758750374db4fa96e5f5e4488b881abf3b74eb2c32ff",
+      "title": "Get Resource Reference Tool",
+      "description": "Returns a resource reference that can be used by MCP clients",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resourceType": {
+            "default": "Text",
+            "type": "string",
+            "enum": [
+              "Text",
+              "Blob"
+            ]
+          },
+          "resourceId": {
+            "default": 1,
+            "description": "ID of the text resource to fetch",
+            "type": "number"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {
+          "resourceId": {
+            "type": "number",
+            "required": false
+          },
+          "resourceType": {
+            "type": "string",
+            "required": false,
+            "enum": [
+              "Text",
+              "Blob"
+            ]
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-structured-content",
+      "digest": "sha256:2011b4806d5de6149f8ee5fa5cdaa2012e2aa95e09741720fcbb5176dc51e85a",
+      "title": "Get Structured Content Tool",
+      "description": "Returns structured content along with an output schema for client data validation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "enum": [
+              "New York",
+              "Chicago",
+              "Los Angeles"
+            ],
+            "description": "Choose city"
+          }
+        },
+        "required": [
+          "location"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "description": "Temperature in celsius"
+          },
+          "conditions": {
+            "type": "string",
+            "description": "Weather conditions description"
+          },
+          "humidity": {
+            "type": "number",
+            "description": "Humidity percentage"
+          }
+        },
+        "required": [
+          "temperature",
+          "conditions",
+          "humidity"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "location"
+        ],
+        "params": {
+          "location": {
+            "type": "string",
+            "required": true,
+            "enum": [
+              "New York",
+              "Chicago",
+              "Los Angeles"
+            ]
+          }
+        },
+        "outputs": [
+          "conditions",
+          "humidity",
+          "temperature"
+        ],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-sum",
+      "digest": "sha256:acaa131989cf52211c8dd4476b3a68cff3ad01bfb50de7dd91d3ec2daff7616b",
+      "title": "Get Sum Tool",
+      "description": "Returns the sum of two numbers",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "description": "First number"
+          },
+          "b": {
+            "type": "number",
+            "description": "Second number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "a",
+          "b"
+        ],
+        "params": {
+          "a": {
+            "type": "number",
+            "required": true
+          },
+          "b": {
+            "type": "number",
+            "required": true
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "get-tiny-image",
+      "digest": "sha256:a7118f5a29dbd51875ffbabe2a3a1d60b63d793ff7bd5e2b3376fad8d611dfdb",
+      "title": "Get Tiny Image Tool",
+      "description": "Returns a tiny MCP logo image.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {},
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "gzip-file-as-resource",
+      "digest": "sha256:56b1b450335cd322a5a2ec0830f6cbd60ae66b10e11a4274cabbcc7ea0dc1d11",
+      "title": "GZip File as Resource Tool",
+      "description": "Compresses a single file using gzip compression. Depending upon the selected output type, returns either the compressed data as a gzipped resource or a resource link, allowing it to be downloaded in a subsequent request during the current session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "default": "README.md.gz",
+            "type": "string",
+            "description": "Name of the output file"
+          },
+          "data": {
+            "default": "https://raw.githubusercontent.com/modelcontextprotocol/servers/refs/heads/main/README.md",
+            "type": "string",
+            "format": "uri",
+            "description": "URL or data URI of the file content to compress"
+          },
+          "outputType": {
+            "default": "resourceLink",
+            "description": "How the resulting gzipped file should be returned. 'resourceLink' returns a link to a resource that can be read later, 'resource' returns a full resource object.",
+            "type": "string",
+            "enum": [
+              "resourceLink",
+              "resource"
+            ]
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "surface": {
+        "required": [],
+        "params": {
+          "data": {
+            "type": "string",
+            "required": false
+          },
+          "name": {
+            "type": "string",
+            "required": false
+          },
+          "outputType": {
+            "type": "string",
+            "required": false,
+            "enum": [
+              "resourceLink",
+              "resource"
+            ]
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted-false"
+      }
+    },
+    {
+      "name": "simulate-research-query",
+      "digest": "sha256:e218fab5fa56c28d4cf2889ec204f6f352b0cefd322acde17d8ec9dcd1cc5a45",
+      "title": "Simulate Research Query",
+      "description": "Simulates a deep research operation that gathers, analyzes, and synthesizes information. Demonstrates MCP task-based operations with progress through multiple stages. If 'ambiguous' is true and client supports elicitation, sends an elicitation request for clarification.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "The research topic to investigate"
+          },
+          "ambiguous": {
+            "default": false,
+            "description": "Simulate an ambiguous query that requires clarification (triggers input_required status)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "topic"
+        ],
+        "params": {
+          "ambiguous": {
+            "type": "boolean",
+            "required": false
+          },
+          "topic": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted-false"
+      }
+    },
+    {
+      "name": "toggle-simulated-logging",
+      "digest": "sha256:4887c846d40d2a27cac04a667401e020c7957a2fc7dc8517c2e9ade172954396",
+      "title": "Toggle Simulated Logging",
+      "description": "Toggles simulated, random-leveled logging on or off.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {},
+        "outputs": [],
+        "readOnly": "hinted-false"
+      }
+    },
+    {
+      "name": "toggle-subscriber-updates",
+      "digest": "sha256:447e8c84582c8eb6339c923f31526d76a7370081c6b11420e9abb282a7eeb85d",
+      "title": "Toggle Subscriber Updates",
+      "description": "Toggles simulated resource subscription updates on or off.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {},
+        "outputs": [],
+        "readOnly": "hinted-false"
+      }
+    },
+    {
+      "name": "trigger-long-running-operation",
+      "digest": "sha256:ad20f4f507957cf717b4b3953cb21f51165c643dcbb832c25405def94665bad1",
+      "title": "Trigger Long Running Operation Tool",
+      "description": "Demonstrates a long running operation with progress updates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "default": 10,
+            "description": "Duration of the operation in seconds",
+            "type": "number"
+          },
+          "steps": {
+            "default": 5,
+            "description": "Number of steps in the operation",
+            "type": "number"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {
+          "duration": {
+            "type": "number",
+            "required": false
+          },
+          "steps": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "demo://resource/static/document/architecture.md",
+      "digest": "sha256:2c20d670559c5f8e5c1fdc5083748904ff777a50f5923037e69f796b988e1285",
+      "name": "architecture.md",
+      "description": "Static document file exposed from /docs: architecture.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/extension.md",
+      "digest": "sha256:47ef1bd632531fe13787c5932c560955438255e453704f6323c39409df651b6a",
+      "name": "extension.md",
+      "description": "Static document file exposed from /docs: extension.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/features.md",
+      "digest": "sha256:a08e8c87acd23077793275612cade06c10232b5fd1bf002d64c9799653d45ce8",
+      "name": "features.md",
+      "description": "Static document file exposed from /docs: features.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/how-it-works.md",
+      "digest": "sha256:ce967617e2adb7bb0d791e555900c0a2b75a3dfda0530b01457f72f5ccd733f0",
+      "name": "how-it-works.md",
+      "description": "Static document file exposed from /docs: how-it-works.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/instructions.md",
+      "digest": "sha256:1c195708b086444f539cda90255b565d69cf06149598e32b8c924a67baad654f",
+      "name": "instructions.md",
+      "description": "Static document file exposed from /docs: instructions.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/startup.md",
+      "digest": "sha256:224e8dc0f1250a1c218d51d4ace93b5fb4ef08c06f9b7bec4eef23a166455039",
+      "name": "startup.md",
+      "description": "Static document file exposed from /docs: startup.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "demo://resource/static/document/structure.md",
+      "digest": "sha256:85cf6cdfbb158db69d51a7a9af2b3611828145416ddaadf9dffe2a96d2d7868f",
+      "name": "structure.md",
+      "description": "Static document file exposed from /docs: structure.md",
+      "mimeType": "text/markdown"
+    }
+  ]
+}

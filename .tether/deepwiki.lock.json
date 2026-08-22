@@ -1,0 +1,187 @@
+{
+  "lockfileVersion": 1,
+  "connector": {
+    "id": "deepwiki",
+    "transport": "http",
+    "target": "https://mcp.deepwiki.com/mcp",
+    "protocolVersion": "2025-11-25",
+    "serverInfo": {
+      "name": "DeepWiki",
+      "version": "2.14.3"
+    }
+  },
+  "capabilities": {
+    "experimental": {},
+    "prompts": {
+      "listChanged": true
+    },
+    "resources": {
+      "subscribe": false,
+      "listChanged": true
+    },
+    "tools": {
+      "listChanged": true
+    }
+  },
+  "scope": {
+    "authMode": "none",
+    "principalHint": null,
+    "complete": true
+  },
+  "digest": "sha256:f618fc069f0e503dc636b85f631c93db921835b19ab953bf9e894b0638eb77ca",
+  "tools": [
+    {
+      "name": "ask_question",
+      "digest": "sha256:e459de9d5f5436dc9ca3028e10b142c5a4fb0968e0f266155c64132e072bc171",
+      "description": "Ask any question about a GitHub repository and get an AI-powered, context-grounded response.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repoName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "description": "GitHub repository or list of repositories (max 10) in owner/repo format."
+          },
+          "question": {
+            "description": "The question to ask about the repository.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repoName",
+          "question"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "x-fastmcp-wrap-result": true
+      },
+      "surface": {
+        "required": [
+          "question",
+          "repoName"
+        ],
+        "params": {
+          "question": {
+            "type": "string",
+            "required": true
+          },
+          "repoName": {
+            "type": "array|string",
+            "required": true
+          }
+        },
+        "outputs": [
+          "result"
+        ],
+        "readOnly": "unknown"
+      }
+    },
+    {
+      "name": "read_wiki_contents",
+      "digest": "sha256:334d7f026967f3e7e377501804fd627728589158e8e5a8b8d59465513f329e0d",
+      "description": "View documentation about a GitHub repository.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repoName": {
+            "description": "GitHub repository in owner/repo format (e.g. \"facebook/react\").",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repoName"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "x-fastmcp-wrap-result": true
+      },
+      "surface": {
+        "required": [
+          "repoName"
+        ],
+        "params": {
+          "repoName": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "outputs": [
+          "result"
+        ],
+        "readOnly": "unknown"
+      }
+    },
+    {
+      "name": "read_wiki_structure",
+      "digest": "sha256:78047dac2c18db6d61a09e2e35ac3687548d7bb5b3ddc79feeab484d3f429067",
+      "description": "Get a list of documentation topics for a GitHub repository.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repoName": {
+            "description": "GitHub repository in owner/repo format (e.g. \"facebook/react\").",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repoName"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "x-fastmcp-wrap-result": true
+      },
+      "surface": {
+        "required": [
+          "repoName"
+        ],
+        "params": {
+          "repoName": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "outputs": [
+          "result"
+        ],
+        "readOnly": "unknown"
+      }
+    }
+  ],
+  "resources": []
+}

@@ -1,0 +1,35 @@
+{
+  "name": "tether-mcp",
+  "version": "0.1.0",
+  "description": "Lockfile and drift checker for MCP connectors. tools/list is the lockfile; tether check is npm outdated.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "tether": "bin/tether.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "commands",
+    ".claude-plugin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "drift",
+    "lockfile",
+    "agent-skills",
+    "claude"
+  ]
+}

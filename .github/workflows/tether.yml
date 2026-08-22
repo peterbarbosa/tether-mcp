@@ -1,0 +1,23 @@
+name: MCP drift check
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Monday morning, before anyone relies on a stale skill
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check MCP connectors for drift
+        run: npx tether-mcp check --out drift.md
+
+      - name: Publish report
+        if: always()
+        run: cat drift.md >> "$GITHUB_STEP_SUMMARY"
