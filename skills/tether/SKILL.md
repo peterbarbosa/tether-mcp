@@ -61,9 +61,64 @@ with the original credentials, or keep a separate lockfile per principal.
 
 ## What Tether will not do
 
-Tether only ever calls `tools/list` and `resources/list`. It never invokes a
-tool, so a drift check can never create a page, file a ticket, or send a
-message. Do not ask it to verify a tool by calling it.
+`snapshot` and `check` call `tools/list` and `resources/list` only. They never
+invoke a tool, so a drift check can never create a page, file a ticket, or send
+a message. Do not ask Tether to verify a tool by calling it.
 
-Tether also does not check whether a skill produces *good* output — only
-whether the things it references still exist.
+`resolve` does call tools, but only ones that pass all three gates: a skill
+declared it as a probe, a human allowlisted it, and it is not a dry run. See the
+instance drift section below.
+
+Tether does not check whether a skill produces *good* output — only whether the
+things it references still exist.
+
+---
+
+# Instance drift (tier 2)
+
+Schema drift tells you a *tool* changed. Instance drift tells you the *thing the
+tool points at* changed — the wiki path, the project key, the channel. MCP
+introspects capabilities, not instances, so this tier only works for identifiers
+a skill has declared.
+
+## Declaring an identifier
+
+Add a `tether:` block to the skill's frontmatter:
+
+```yaml
+tether:
+  connectors: [linear]
+  tools:
+    - linear.create_issue
+  identifiers:
+    - id: platform-team
+      connector: linear
+      probe: list_teams      # a read-only tool that enumerates
+      match: name            # the field in each result to compare
+      value: Platform        # what this skill assumes exists
+```
+
+Then `npx tether-mcp index` to register it, and `npx tether-mcp resolve` to check.
+
+## Rules you must follow
+
+**Never call a connector tool to verify drift yourself.** If Tether skipped a
+probe, that reason applies to you too. Report the skip; do not route around it.
+
+**Never edit `.tether/allowlist.json`.** Authorizing a probe is a human decision,
+and it is the only thing standing between a drift audit and a side effect. You
+may run `npx tether-mcp allowlist` to regenerate *proposals*, which authorize
+nothing, and you may tell the user which entries look worth reviewing.
+
+**Use `--dry-run` when unsure.** It prints exactly which probes would run and
+with what arguments, without calling anything.
+
+## Reading a resolve report
+
+- 🔴 **missing** — the identifier is gone. Check the suggested successors, then
+  update the skill and its manifest together.
+- ⏭️ **skipped** — Tether declined rather than guessed. Usually the probe is not
+  allowlisted, or the declaration is incomplete.
+- ⚠️ **error** — the probe ran and failed. Often the connector is unreachable.
+- ✅ **resolved** — still there. "Low confidence" means the match was a substring
+  of a prose blob rather than an entry in an enumerated list.

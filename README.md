@@ -41,41 +41,47 @@ moved.
 ```
 # Tether drift report
 
-**1 breaking change** across 1 connector.
+**2 breaking changes** across 1 connector.
 
 ## linear — breaking
 
 - 🔴 `create_issue` now requires `teamId`. Agents that omitted it will start guessing a value.
-- 🟡 `search_issues` added an optional parameter `includeArchived`.
+- 🔴 Tool `search_issues` appears to have been renamed to `find_issues` (high confidence).
+
+## Affected skills
+
+### `skills/file-a-bug/SKILL.md`
+
+- `create_issue` now requires `teamId`. Agents that omitted it will start guessing a value.
+  - **Suggested edit:** pass `teamId` explicitly when calling `create_issue`; do not let the agent infer it
 ```
 
 Exit codes: `0` clean, `1` breaking drift, `2` a connector could not be reached.
 A checker that cannot reach a connector must never report all clear.
 
-## In CI
+## The two tiers of drift
 
-```yaml
-- run: npx tether-mcp check --out drift.md
+**Tier 1 — schema drift.** A tool is renamed or removed, a parameter becomes
+required, an enum narrows. Detected by diffing `tools/list` snapshots. Cheap,
+universal, no per-connector code. This is `snapshot` and `check`.
+
+**Tier 2 — instance drift.** The wiki path, the project key, the folder, the
+channel. MCP introspects *capabilities*, not *instances*: `tools/list` tells you
+`update_page(path, content)` exists, and nothing about whether `/Engineering/API`
+still does. This is the silent tier — the one that fails without erroring — and
+it is `index`, `allowlist` and `resolve`.
+
+## Tier 1: schema drift
+
+```bash
+npx tether-mcp snapshot        # capture
+npx tether-mcp check           # compare
 ```
-
-A ready-made workflow is in [`.github/workflows/tether.yml`](.github/workflows/tether.yml).
-
-## In Claude Code
-
-Tether ships as a plugin. Install it and your agent can check drift mid-task:
-
-- **Skill** `tether` — the agent runs a check, reads the report, and finds the
-  skills that reference the affected tools.
-- **Command** `/tether-check` — run a check and get an affected-skills summary.
-
-## What counts as breaking
-
-Severity answers one question: would a skill written against the old snapshot
-still do the right thing against the new one?
 
 | Change | Severity |
 | --- | --- |
 | Tool or resource removed | 🔴 breaking |
+| Tool renamed (successor named where detectable) | 🔴 breaking |
 | Parameter removed, or became required | 🔴 breaking |
 | Parameter type changed | 🔴 breaking |
 | Enum narrowed | 🔴 breaking |
@@ -84,6 +90,118 @@ still do the right thing against the new one?
 | Optional parameter added, enum widened | 🟡 warning |
 | Snapshot incomplete | 🟡 warning |
 | Tool added, description or version changed | ⚪ info |
+
+Rename detection is deterministic. A rename usually preserves the parameter
+surface exactly, and an identical surface is much stronger evidence than a
+similar name. Tether pairs a removed tool with a new one only when the surfaces
+match uniquely, or the names are close *and* the parameter sets are identical.
+Anything ambiguous is reported as a plain removal rather than a confident and
+wrong patch suggestion.
+
+## Tier 2: instance drift
+
+### 1. Declare what a skill assumes
+
+Add a `tether:` block to a skill's frontmatter. This turns drift checking from
+inference into lookup — no model involved.
+
+```yaml
+---
+name: file-a-bug
+description: File a bug in the right place.
+tether:
+  connectors: [linear]
+  tools:
+    - linear.create_issue
+  identifiers:
+    - id: platform-team
+      connector: linear
+      probe: list_teams        # a read-only tool that enumerates
+      match: name              # the field in each result to compare
+      value: Platform          # what this skill assumes exists
+      args:                    # optional static arguments for the probe
+        includeArchived: false
+---
+```
+
+Everything under `tether:` is optional. A skill with no manifest still gets
+tool-reference checking; the manifest is what unlocks instance resolution.
+
+### 2. Index the library
+
+```bash
+npx tether-mcp index
+```
+
+Writes `.tether/index.json` — which skills reference which tools. Commit it.
+
+This stays in the deterministic core. The lockfile already holds ground-truth
+tool names from `tools/list`, so finding the skills that reference them is a
+search against a known vocabulary, not an inference over prose. Detection only
+matches code-formatted references (`` `create_issue` ``); matching bare prose
+would flag every skill containing the word "add" against a server that happens
+to expose an `add` tool.
+
+`index` exits `1` if a skill declares a tool that exists in no lockfile.
+
+### 3. Authorize probes — the safety story
+
+```bash
+npx tether-mcp allowlist
+```
+
+This writes **proposals** to `.tether/allowlist.proposed.json`. Nothing in that
+file is active. Tether will not probe a tool until a human moves it into
+`.tether/allowlist.json` and commits it. The friction is the feature.
+
+Proposals are nominated from two kinds of evidence — a `readOnlyHint: true`
+annotation, and a name that reads as retrieval — and anything whose name
+suggests mutation is never nominated, whatever its annotations claim.
+
+### 4. Resolve
+
+```bash
+npx tether-mcp resolve --dry-run   # log intended probes, call nothing
+npx tether-mcp resolve             # check for real
+```
+
+```
+# Tether instance drift report
+
+**1 identifier no longer resolves.** This is the silent tier: nothing errors,
+the skill just does the wrong thing.
+
+- ✅ **platform-team** — `Platform` via `linear.list_teams` still resolves.
+- 🔴 **eng-wiki-root** — `/Engineering/API` via `wiki.list_pages` was not found among 34 candidates.
+  - Did it become `/Engineering/API-Reference`? (78% similar)
+- ⏭️ **billing-project** — skipped: `search_projects` is not on the probe allowlist.
+```
+
+Exits `1` when an identifier no longer resolves.
+
+## Safety
+
+**Tether never invokes a tool unless all three of these are true**, and they are
+checked in this order:
+
+1. **A skill declared it.** Tether never chooses a tool to call on its own — only
+   what a manifest names as a `probe`.
+2. **A human allowlisted it.** Server annotations can nominate; only a committed
+   `allowlist.json` authorizes.
+3. **It is not a dry run.**
+
+Snapshotting and checking call `tools/list` and `resources/list` only.
+
+This is enforced by tests, not by care. `test/safety.test.js` asserts that
+`client.callTool` appears exactly once in the entire codebase, that the
+allowlist check precedes it, that the resolver's gates hold against a spy which
+fails the suite if it is ever reached illegitimately, and that a malformed
+allowlist authorizes nothing. There are two independent gates — one in the
+resolver, one in the client — that deliberately share no code.
+
+Tool annotations like `readOnlyHint` are server-controlled, and the MCP spec says
+clients must treat them as untrusted. Tether records them as *evidence*
+(`"readOnly": "hinted"`), never as authority.
 
 ## The lockfile
 
@@ -121,25 +239,44 @@ byte-identical — a clean `git diff` means nothing drifted.
 **`surface` is what the differ reads.** The same JSON Schema constraint can be
 written three equivalent ways. Diffing raw schema produces phantom breaking
 changes, so Tether normalizes each tool down to the facts a skill can actually
-depend on. The raw schema stays in the lockfile for human review.
+depend on. The raw schema stays in the lockfile for human review. The differ
+never short-circuits on a digest, because lockfiles are meant to be hand-edited
+and a hash Tether did not compute cannot be trusted.
 
 **Snapshots are credential-scoped.** MCP allows a `tools/list` result to vary by
 the authorization presented. `principalHint` is a non-reversible digest of the
 credentials used — never the credential itself. If it doesn't match, Tether
 reports a *scope mismatch* rather than inventing hundreds of phantom removals.
 
-## Safety
+## Three surfaces
 
-Tether calls `tools/list` and `resources/list`. Nothing else.
+**CLI** — the primary interface, for a cron and for CI.
 
-`tools/call` is never imported, referenced, or reachable from any code path.
-An auditor that creates pages or files tickets while checking for drift is worse
-than no auditor, so this is enforced by tests that fail if any source file
-reaches for a tool-invoking method — not by care.
+```yaml
+- run: npx tether-mcp check --out drift.md
+```
 
-Tool annotations like `readOnlyHint` are server-controlled, and the MCP spec says
-clients must treat them as untrusted. Tether records them as *evidence*
-(`"readOnly": "hinted"`), never as authority.
+A ready-made workflow is in [`.github/workflows/tether.yml`](.github/workflows/tether.yml).
+
+**Claude plugin** — so an agent can check drift mid-task.
+
+- Skill `tether` — the agent runs a check, reads the report, and finds the skills
+  that reference the affected tools.
+- `/tether-check` — drift plus an affected-skills summary.
+- `/tether-resolve` — instance drift for declared identifiers.
+
+**MCP server** — so other agents can query drift status.
+
+```bash
+npx tether-mcp mcp
+```
+
+Exposes three read-only tools: `tether_check_drift`, `tether_list_connectors`,
+`tether_affected_skills`. None of them can snapshot, probe, or write — an agent
+that could accept drift on its own behalf would defeat the point of a lockfile
+being reviewed.
+
+Tether tracks its own MCP server in `.tether/tether.lock.json`. It drifts too.
 
 ## Non-goals
 
@@ -147,13 +284,23 @@ Not a security scanner. Not a spec linter. Not a registry or control plane. Not
 an evaluator — Tether checks whether a skill's references still resolve, not
 whether the skill produces good output.
 
-## Status
+## Limits worth knowing
 
-**v0.** Schema drift only: Tether tells you when a connector's *capabilities*
-change. It does not yet tell you when an *instance* changes — whether
-`/Engineering/API` still exists, whether that project key still resolves. That is
-the silent tier and it is next. The lockfile format is designed for it.
+- The surface walks top-level parameters only. Drift inside a nested object is
+  not yet visible.
+- `$ref` is recorded as an opaque type string, so a change *behind* a ref is not
+  detected.
+- Instance resolution needs a probe that enumerates. Servers that only return one
+  prose blob are matched by substring and reported as low confidence.
 
-Requires Node 20+. One dependency: the official MCP SDK. No build step.
+## Building on it
+
+Requires Node 20+. One dependency: the official MCP SDK. No build step, no
+TypeScript, no bundler — `npx tether-mcp` runs the source directly, so a domain
+team can fork and patch it without a toolchain.
+
+```bash
+npm test    # 72 tests, no network required
+```
 
 MIT.

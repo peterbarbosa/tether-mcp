@@ -92,3 +92,23 @@ export function surfaceOf(tool) {
       : 'unknown'
   };
 }
+
+/**
+ * Normalized edit distance, 0..1. Used to pair a removed tool with an added
+ * one, and to suggest what a missing identifier may have become.
+ */
+export function similarity(a, b) {
+  const x = String(a).toLowerCase();
+  const y = String(b).toLowerCase();
+  if (x === y) return 1;
+  if (!x.length || !y.length) return 0;
+  let previous = Array.from({ length: y.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= x.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= y.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return 1 - previous[y.length] / Math.max(x.length, y.length);
+}

@@ -2,5 +2,20 @@
   "name": "tether",
   "version": "0.1.0",
   "description": "Know when your MCP connectors drift out from under your agent skills.",
-  "keywords": ["mcp", "drift", "lockfile", "skills"]
+  "keywords": [
+    "mcp",
+    "drift",
+    "lockfile",
+    "skills"
+  ],
+  "mcpServers": {
+    "tether": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tether-mcp",
+        "mcp"
+      ]
+    }
+  }
 }

@@ -15,9 +15,16 @@ jobs:
         with:
           node-version: 20
 
-      - name: Check MCP connectors for drift
+      # Tier 1: has any connector's tool surface changed?
+      - name: Check for schema drift
         run: npx tether-mcp check --out drift.md
+
+      # Tier 2: do the identifiers skills declare still exist?
+      # Only probes a human has put on the allowlist are ever called.
+      - name: Check for instance drift
+        if: always()
+        run: npx tether-mcp resolve --out instance-drift.md
 
       - name: Publish report
         if: always()
-        run: cat drift.md >> "$GITHUB_STEP_SUMMARY"
+        run: cat drift.md instance-drift.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true

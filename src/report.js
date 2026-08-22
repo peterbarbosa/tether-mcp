@@ -1,43 +1,78 @@
-// Rendering and exit codes. Pure -- takes diff reports, returns strings.
+// Rendering and exit codes. Pure -- takes reports, returns strings.
 
 import { BREAKING, WARNING } from './diff.js';
+import { affectedSkills } from './skills.js';
+import { RESOLVED, MISSING, SKIPPED, ERROR, DRY_RUN } from './probe.js';
 
 const ICON = { breaking: '🔴', warning: '🟡', info: '⚪' };
+const code = (v) => '`' + v + '`';
 
 /** One change, as a sentence a human can act on without reading the lockfile. */
 export function describe(c) {
-  const t = c.tool ? '`' + c.tool + '`' : '';
-  const p = c.param ? '`' + c.param + '`' : '';
+  const t = c.tool ? code(c.tool) : '';
+  const p = c.param ? code(c.param) : '';
   switch (c.type) {
     case 'tool_removed': return `Tool ${t} no longer exists. Any skill that calls it will fail.`;
+    case 'tool_renamed': return `Tool ${t} appears to have been renamed to ${code(c.to)} (${c.confidence} confidence).`;
     case 'tool_added': return `New tool ${t} is available.`;
     case 'param_removed': return `${t} no longer accepts ${p}. Calls passing it may be rejected.`;
     case 'param_now_required': return `${t} now requires ${p}. Agents that omitted it will start guessing a value.`;
     case 'param_added_required': return `${t} added a new required parameter ${p}. Existing calls are incomplete.`;
     case 'param_added_optional': return `${t} added an optional parameter ${p}.`;
     case 'param_now_optional': return `${t} no longer requires ${p}.`;
-    case 'param_type_changed': return `${t} parameter ${p} changed type from \`${c.from}\` to \`${c.to}\`.`;
-    case 'enum_narrowed': return `${t} parameter ${p} no longer accepts: ${c.removed.map((v) => '`' + v + '`').join(', ')}.`;
-    case 'enum_widened': return `${t} parameter ${p} now also accepts: ${c.added.map((v) => '`' + v + '`').join(', ')}.`;
+    case 'param_type_changed': return `${t} parameter ${p} changed type from ${code(c.from)} to ${code(c.to)}.`;
+    case 'enum_narrowed': return `${t} parameter ${p} no longer accepts: ${c.removed.map(code).join(', ')}.`;
+    case 'enum_widened': return `${t} parameter ${p} now also accepts: ${c.added.map(code).join(', ')}.`;
     case 'enum_removed': return `${t} parameter ${p} dropped its list of allowed values.`;
     case 'output_removed': return `${t} no longer returns ${p}. Skills reading that field will get nothing.`;
     case 'output_added': return `${t} now also returns ${p}.`;
     case 'readonly_revoked': return `${t} previously declared itself read-only and no longer does. Review before any automated use.`;
     case 'description_changed': return `${t} description changed. The agent's understanding of when to use it may shift.`;
     case 'title_changed': return `${t} display title changed.`;
-    case 'resource_removed': return `Resource \`${c.resource}\` no longer exists.`;
-    case 'resource_added': return `New resource \`${c.resource}\` is available.`;
-    case 'protocol_version_changed': return `Server moved from MCP \`${c.from}\` to \`${c.to}\`.`;
-    case 'server_version_changed': return `Server version changed from \`${c.from}\` to \`${c.to}\`.`;
+    case 'resource_removed': return `Resource ${code(c.resource)} no longer exists.`;
+    case 'resource_added': return `New resource ${code(c.resource)} is available.`;
+    case 'protocol_version_changed': return `Server moved from MCP ${code(c.from)} to ${code(c.to)}.`;
+    case 'server_version_changed': return `Server version changed from ${code(c.from)} to ${code(c.to)}.`;
     case 'snapshot_incomplete': return c.detail;
     default: return c.type;
+  }
+}
+
+/**
+ * A concrete edit for one change, or null when Tether cannot propose one
+ * honestly. Deterministic: it restates the change as an instruction and never
+ * invents a value it has not been told.
+ */
+export function suggestPatch(change) {
+  switch (change.type) {
+    case 'tool_renamed':
+      return `replace ${code(change.tool)} with ${code(change.to)}`;
+    case 'tool_removed':
+      return `remove or replace the call to ${code(change.tool)} — it has no successor`;
+    case 'param_now_required':
+    case 'param_added_required':
+      return `pass ${code(change.param)} explicitly when calling ${code(change.tool)}; do not let the agent infer it`;
+    case 'param_removed':
+      return `stop passing ${code(change.param)} to ${code(change.tool)}`;
+    case 'param_type_changed':
+      return `${code(change.param)} must now be a ${code(change.to)}, not a ${code(change.from)}`;
+    case 'enum_narrowed':
+      return `stop using ${change.removed.map(code).join(', ')} for ${code(change.param)}`;
+    case 'output_removed':
+      return `stop reading ${code(change.param)} from the result of ${code(change.tool)}`;
+    case 'readonly_revoked':
+      return `re-review whether ${code(change.tool)} is still safe to call unattended`;
+    default:
+      return null;
   }
 }
 
 const count = (reports, severity) =>
   reports.reduce((n, r) => n + r.changes.filter((c) => c.severity === severity).length, 0);
 
-export function renderMarkdown(reports) {
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+export function renderMarkdown(reports, index = null) {
   const breaking = count(reports, BREAKING);
   const warnings = count(reports, WARNING);
   const lines = ['# Tether drift report', ''];
@@ -47,12 +82,16 @@ export function renderMarkdown(reports) {
     return lines.join('\n');
   }
 
-  const summary = breaking
-    ? `**${breaking} breaking change${breaking === 1 ? '' : 's'}** across ${reports.length} connector${reports.length === 1 ? '' : 's'}.`
-    : warnings
-      ? `No breaking changes. ${warnings} warning${warnings === 1 ? '' : 's'} across ${reports.length} connector${reports.length === 1 ? '' : 's'}.`
-      : `No drift. ${reports.length} connector${reports.length === 1 ? '' : 's'} match their lockfile.`;
-  lines.push(summary, '');
+  lines.push(
+    breaking
+      ? `**${plural(breaking, 'breaking change')}** across ${plural(reports.length, 'connector')}.`
+      : warnings
+        ? `No breaking changes. ${plural(warnings, 'warning')} across ${plural(reports.length, 'connector')}.`
+        : reports.length === 1
+          ? 'No drift. 1 connector matches its lockfile.'
+          : `No drift. All ${reports.length} connectors match their lockfiles.`,
+    ''
+  );
 
   for (const report of reports) {
     if (report.error) {
@@ -71,14 +110,16 @@ export function renderMarkdown(reports) {
       lines.push(`## ${report.connector} — up to date`, '');
       continue;
     }
-    const worst = report.breaking ? 'breaking' : report.severity;
-    lines.push(`## ${report.connector} — ${worst}`, '');
+    lines.push(`## ${report.connector} — ${report.breaking ? 'breaking' : report.severity}`, '');
     for (const severity of [BREAKING, WARNING, 'info']) {
-      const group = report.changes.filter((c) => c.severity === severity);
-      for (const c of group) lines.push(`- ${ICON[severity]} ${describe(c)}`);
+      for (const c of report.changes.filter((x) => x.severity === severity)) {
+        lines.push(`- ${ICON[severity]} ${describe(c)}`);
+      }
     }
     lines.push('');
   }
+
+  lines.push(...affectedSection(reports, index));
 
   if (breaking) {
     lines.push('---', '', 'Review the affected skills, then run `tether snapshot` to accept the new state.', '');
@@ -86,12 +127,43 @@ export function renderMarkdown(reports) {
   return lines.join('\n');
 }
 
-export const renderJson = (reports) =>
+/** "Which skills does this break, and what should change in each?" */
+function affectedSection(reports, index) {
+  if (!index) return [];
+  const affected = [...affectedSkills(index, reports).entries()]
+    .map(([path, entry]) => [path, entry.changes.filter((c) => c.severity === BREAKING)])
+    .filter(([, changes]) => changes.length);
+
+  if (!affected.length) {
+    const total = index.skills?.length ?? 0;
+    return total ? ['## Affected skills', '', `None. ${plural(total, 'indexed skill')} unaffected.`, ''] : [];
+  }
+
+  const lines = ['## Affected skills', ''];
+  for (const [path, changes] of affected) {
+    lines.push(`### ${code(path)}`, '');
+    for (const change of changes) {
+      lines.push(`- ${describe(change)}`);
+      const patch = suggestPatch(change);
+      if (patch) lines.push(`  - **Suggested edit:** ${patch}`);
+    }
+    lines.push('');
+  }
+  return lines;
+}
+
+export const renderJson = (reports, index = null) =>
   JSON.stringify(
     {
       breaking: count(reports, BREAKING),
       warnings: count(reports, WARNING),
-      connectors: reports
+      connectors: reports,
+      affected: index
+        ? [...affectedSkills(index, reports).entries()].map(([path, entry]) => ({
+            path,
+            changes: entry.changes.map((c) => ({ ...c, suggestedEdit: suggestPatch(c) }))
+          }))
+        : undefined
     },
     null,
     2
@@ -106,3 +178,81 @@ export function exitCode(reports) {
   if (reports.some((r) => r.breaking > 0)) return 1;
   return 0;
 }
+
+// --- instance drift (the resolver) ---------------------------------------
+
+const RESOLVE_ICON = {
+  [RESOLVED]: '✅', [MISSING]: '🔴', [SKIPPED]: '⏭️', [ERROR]: '⚠️', [DRY_RUN]: '🔍'
+};
+
+export function renderResolveMarkdown(results) {
+  const lines = ['# Tether instance drift report', ''];
+  if (!results.length) {
+    lines.push('No skills declare identifiers yet. Add a `tether:` block to a skill to enable this check.', '');
+    return lines.join('\n');
+  }
+
+  const missing = results.filter((r) => r.status === MISSING);
+  const skipped = results.filter((r) => r.status === SKIPPED);
+  const dry = results.filter((r) => r.status === DRY_RUN);
+
+  if (dry.length) {
+    lines.push(`**Dry run.** ${plural(dry.length, 'probe')} would be called. Nothing was invoked.`, '');
+    for (const r of dry) {
+      lines.push(
+        `- 🔍 ${code(r.connector + '.' + r.intended.tool)} with ${code(JSON.stringify(r.intended.arguments))} ` +
+        `— to check ${code(r.value)}`
+      );
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  const probed = results.length - skipped.length;
+  lines.push(
+    missing.length
+      ? `**${plural(missing.length, 'identifier')} no longer resolve${missing.length === 1 ? 's' : ''}.** ` +
+        'This is the silent tier: nothing errors, the skill just does the wrong thing.'
+      : probed
+        ? `All ${plural(probed, 'probed identifier')} still resolve.`
+        : `**Nothing was probed.** ${plural(skipped.length, 'identifier')} skipped — see below.`,
+    ''
+  );
+
+  for (const r of results) {
+    const where = `${code(r.value)} via ${code(r.connector + '.' + (r.probe ?? '?'))}`;
+    if (r.status === MISSING) {
+      // "among 1 candidates" reads as a bug when the probe returned one prose
+      // blob rather than an enumeration. Say which situation this actually is.
+      const among = r.candidates === 1
+        ? 'was not found in what the probe returned'
+        : `was not found among ${r.candidates} candidates`;
+      lines.push(`- ${RESOLVE_ICON[r.status]} **${r.id}** — ${where} ${among}.`);
+      for (const s of r.suggestions ?? []) {
+        lines.push(`  - Did it become ${code(s.candidate)}? (${Math.round(s.score * 100)}% similar)`);
+      }
+    } else if (r.status === SKIPPED) {
+      lines.push(`- ${RESOLVE_ICON[r.status]} **${r.id}** — skipped: ${r.reason}`);
+    } else if (r.status === ERROR) {
+      lines.push(`- ${RESOLVE_ICON[r.status]} **${r.id}** — probe failed: ${r.reason}`);
+    } else {
+      const confidence = r.confidence === 'low' ? ' (low confidence: unstructured match)' : '';
+      lines.push(`- ${RESOLVE_ICON[r.status]} **${r.id}** — ${where} still resolves${confidence}.`);
+    }
+  }
+  lines.push('');
+
+  if (skipped.length) {
+    lines.push(
+      `${plural(skipped.length, 'identifier')} skipped rather than guessed. Tether will not probe a tool a ` +
+      'human has not put on the allowlist.',
+      ''
+    );
+  }
+  return lines.join('\n');
+}
+
+export const renderResolveJson = (results) =>
+  JSON.stringify({ missing: results.filter((r) => r.status === MISSING).length, identifiers: results }, null, 2) + '\n';
+
+export const resolveExitCode = (results) => (results.some((r) => r.status === MISSING) ? 1 : 0);

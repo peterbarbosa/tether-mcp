@@ -1,0 +1,107 @@
+{
+  "_comment": "PROPOSAL ONLY -- Tether will not probe anything in this file. Review each entry, set reviewedBy, and move the ones you trust into allowlist.json.",
+  "allowlistVersion": 1,
+  "connectors": {
+    "deepwiki": {
+      "read_wiki_contents": {
+        "classification": "read-only",
+        "confidence": "low",
+        "evidence": [
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "View documentation about a GitHub repository."
+      },
+      "read_wiki_structure": {
+        "classification": "read-only",
+        "confidence": "low",
+        "evidence": [
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Get a list of documentation topics for a GitHub repository."
+      }
+    },
+    "everything": {
+      "echo": {
+        "classification": "read-only",
+        "confidence": "low",
+        "evidence": [
+          "server annotation readOnlyHint: true"
+        ],
+        "reviewedBy": null,
+        "description": "Echoes back the input string"
+      },
+      "get-annotated-message": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Demonstrates how annotations can be used to provide metadata about content."
+      },
+      "get-env": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns all environment variables, helpful for debugging MCP server configuration"
+      },
+      "get-resource-links": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns up to ten resource links that reference different types of resources"
+      },
+      "get-resource-reference": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns a resource reference that can be used by MCP clients"
+      },
+      "get-structured-content": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns structured content along with an output schema for client data validation"
+      },
+      "get-sum": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns the sum of two numbers"
+      },
+      "get-tiny-image": {
+        "classification": "read-only",
+        "confidence": "high",
+        "evidence": [
+          "server annotation readOnlyHint: true",
+          "name reads as retrieval"
+        ],
+        "reviewedBy": null,
+        "description": "Returns a tiny MCP logo image."
+      }
+    }
+  }
+}
