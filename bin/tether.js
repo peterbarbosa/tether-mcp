@@ -16,6 +16,8 @@ import {
   loadAllowlist, isAllowed, proposeAllowlist, writeProposal, allowedCount, proposalPath, allowlistPath
 } from '../src/allowlist.js';
 import { resolveIdentifier } from '../src/probe.js';
+import { VERSION } from '../src/version.js';
+import { loadAcknowledged, applyAcknowledgements, expiredEntries, acknowledgedPath } from '../src/acknowledged.js';
 import {
   renderMarkdown, renderJson, exitCode,
   renderResolveMarkdown, renderResolveJson, resolveExitCode
@@ -116,7 +118,7 @@ async function snapshot() {
       const lock = buildLock(await snapshotConnector(connector, { timeoutMs }));
       writeLock(dir, lock, {
         capturedAt: new Date().toISOString(),
-        tetherVersion: '0.1.0',
+        tetherVersion: VERSION,
         source: connector.source
       });
       note(`snapshot ${connector.id}: ${lock.tools.length} tools, ${lock.resources.length} resources`);
@@ -141,6 +143,14 @@ async function check() {
     fail(`no lockfile for: ${unlocked.join(', ')}. Run \`tether snapshot ${unlocked.join(' ')}\` first.`);
   }
 
+  const acknowledged = loadAcknowledged(dir);
+  if (acknowledged.malformed) {
+    note(`warning: ${acknowledgedPath(dir)} could not be parsed (${acknowledged.malformed}); acknowledging nothing`);
+  }
+  for (const entry of expiredEntries(acknowledged)) {
+    note(`warning: acknowledgement for ${entry.tool ?? entry.type} expired on ${entry.expires}; it no longer applies`);
+  }
+
   const reports = [];
   for (const id of locked) {
     if (selected.length && !selected.includes(id)) continue;
@@ -152,7 +162,7 @@ async function check() {
     }
     try {
       const current = buildLock(await snapshotConnector(connector, { timeoutMs }));
-      reports.push(diffLocks(previous, current));
+      reports.push(applyAcknowledgements(diffLocks(previous, current), acknowledged));
     } catch (error) {
       reports.push({ connector: id, changes: [], breaking: 0, error: `Could not reach connector: ${error.message}` });
     }

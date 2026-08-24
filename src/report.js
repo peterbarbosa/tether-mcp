@@ -3,6 +3,7 @@
 import { BREAKING, WARNING } from './diff.js';
 import { affectedSkills } from './skills.js';
 import { RESOLVED, MISSING, SKIPPED, ERROR, DRY_RUN } from './probe.js';
+import { entryFor } from './acknowledged.js';
 
 const ICON = { breaking: '🔴', warning: '🟡', info: '⚪' };
 const code = (v) => '`' + v + '`';
@@ -75,7 +76,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export function renderMarkdown(reports, index = null) {
   const breaking = count(reports, BREAKING);
   const warnings = count(reports, WARNING);
-  const uncheckable = reports.filter((r) => r.error || r.scopeMismatch).length;
+  const uncheckable = reports.filter((r) => r.error || r.scopeMismatch || r.lockfileOutdated).length;
   const lines = ['# Tether drift report', ''];
 
   if (!reports.length) {
@@ -84,7 +85,12 @@ export function renderMarkdown(reports, index = null) {
   }
 
   const compared = reports.length - uncheckable;
-  const suffix = uncheckable ? ` ${plural(uncheckable, 'connector')} could not be checked.` : '';
+  const signedOff = reports.reduce((n, r) => n + (r.acknowledged?.length ?? 0), 0);
+  // "No drift" would be a lie while an acknowledged change is sitting in the
+  // report below it. Say what was set aside, and by whose decision.
+  const suffix =
+    (uncheckable ? ` ${plural(uncheckable, 'connector')} could not be checked.` : '') +
+    (signedOff ? ` ${plural(signedOff, 'change')} previously acknowledged.` : '');
   lines.push(
     breaking
       ? `**${plural(breaking, 'breaking change')}** across ${plural(compared, 'connector')}.${suffix}`
@@ -101,6 +107,18 @@ export function renderMarkdown(reports, index = null) {
   for (const report of reports) {
     if (report.error) {
       lines.push(`## ${report.connector} — unreachable`, '', report.error, '');
+      continue;
+    }
+    if (report.lockfileOutdated) {
+      lines.push(
+        `## ${report.connector} — lockfile out of date`, '',
+        `This lockfile is v${report.lockfileOutdated.from}; Tether now writes v${report.lockfileOutdated.to}.`,
+        'The newer format sees inside nested objects, `$ref` indirection and array outputs, so the',
+        'two cannot be compared without reporting every newly-visible field as an addition.',
+        '',
+        'Run `tether snapshot` to re-capture, then review that diff on its own before trusting',
+        'the next check — it will contain drift that was previously invisible.', ''
+      );
       continue;
     }
     if (report.scopeMismatch) {
@@ -124,12 +142,53 @@ export function renderMarkdown(reports, index = null) {
     lines.push('');
   }
 
+  lines.push(...acknowledgedSection(reports));
   lines.push(...affectedSection(reports, index));
 
   if (breaking) {
-    lines.push('---', '', 'Review the affected skills, then run `tether snapshot` to accept the new state.', '');
+    lines.push(
+      '---', '',
+      'Review the affected skills, then run `tether snapshot` to accept the new state.',
+      '',
+      'If a change is fine as it stands, record that decision instead of re-snapshotting —',
+      '`tether snapshot` accepts everything, including drift nobody has looked at. Add to',
+      '`.tether/acknowledged.json`:', '',
+      '```json',
+      JSON.stringify(
+        {
+          acknowledgedVersion: 1,
+          entries: reports.flatMap((r) =>
+            r.changes.filter((c) => c.severity === BREAKING).map((c) => entryFor(c, r.connector))
+          )
+        },
+        null,
+        2
+      ),
+      '```', ''
+    );
   }
   return lines.join('\n');
+}
+
+/**
+ * Changes a human has already signed off.
+ *
+ * These are still shown. An acknowledgement is a decision on the record, not a
+ * delete key -- if signing off made drift disappear from the report, the file
+ * would rot into a list of things nobody remembers agreeing to.
+ */
+function acknowledgedSection(reports) {
+  const signed = reports.flatMap((r) => (r.acknowledged ?? []).map((c) => ({ ...c, connector: r.connector })));
+  if (!signed.length) return [];
+
+  const lines = ['## Acknowledged', '', `${plural(signed.length, 'change')} previously reviewed and accepted.`, ''];
+  for (const change of signed) {
+    lines.push(`- ${describe(change)}`);
+    const who = change.acknowledgedBy ? ` — ${change.acknowledgedBy}` : '';
+    lines.push(`  - ${change.reason ?? 'no reason recorded'}${who}`);
+  }
+  lines.push('');
+  return lines;
 }
 
 /** "Which skills does this break, and what should change in each?" */
@@ -162,6 +221,7 @@ export const renderJson = (reports, index = null) =>
     {
       breaking: count(reports, BREAKING),
       warnings: count(reports, WARNING),
+      acknowledged: reports.reduce((n, r) => n + (r.acknowledged?.length ?? 0), 0),
       connectors: reports,
       affected: index
         ? [...affectedSkills(index, reports).entries()].map(([path, entry]) => ({
@@ -182,7 +242,7 @@ export function exitCode(reports) {
   // 2 covers everything Tether could not actually check. A scope mismatch
   // belongs here: comparing snapshots taken under different credentials is not
   // a clean result, it is no result.
-  if (reports.some((r) => r.error || r.scopeMismatch)) return 2;
+  if (reports.some((r) => r.error || r.scopeMismatch || r.lockfileOutdated)) return 2;
   if (reports.some((r) => r.breaking > 0)) return 1;
   return 0;
 }

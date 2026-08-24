@@ -29,6 +29,16 @@ references no longer resolve is a broken build.
 Tether reads the `.mcp.json` your project already has. There is nothing to
 configure.
 
+> **Not published to npm yet.** Until then, run it from source:
+>
+> ```bash
+> git clone https://github.com/peterbarbosa/tether-mcp
+> cd tether-mcp && npm install
+> node bin/tether.js --help
+> ```
+>
+> Read every `npx tether-mcp` below as `node /path/to/tether-mcp/bin/tether.js`.
+
 ```bash
 npx tether-mcp list        # what Tether can see
 npx tether-mcp snapshot    # capture the current surface into .tether/
@@ -95,6 +105,49 @@ npx tether-mcp check           # compare
 | Optional parameter added, enum widened | 🟡 warning |
 | Snapshot incomplete | 🟡 warning |
 | Tool added, description or version changed | ⚪ info |
+
+The surface walks nested objects, resolves local `$ref`s, and flattens array
+schemas, so a change reports the full path it happened at — `fields.teamId`,
+`items[].sku`, `[].email`. `required` on a nested entry means "required within
+its parent object"; whether the parent is itself required is that parent's own
+entry, so either can drift without hiding the other. A `$ref` Tether cannot
+follow is recorded as unresolved rather than treated as an empty schema, and a
+schema deeper than the walker's limit is marked `truncated` — under-reporting is
+always visible.
+
+### Accepting a change you have reviewed
+
+`tether snapshot` accepts *everything*, including drift nobody has looked at.
+When one specific change is fine, record that decision instead:
+
+```json
+{
+  "acknowledgedVersion": 1,
+  "entries": [
+    {
+      "connector": "linear",
+      "type": "param_now_required",
+      "tool": "create_issue",
+      "param": "teamId",
+      "reason": "Our skills already pass teamId; verified in #42.",
+      "acknowledgedBy": "peter",
+      "expires": "2026-12-01"
+    }
+  ]
+}
+```
+
+Put that in `.tether/acknowledged.json` and commit it. `check` prints a
+paste-ready entry for every outstanding breaking change, with the reason left
+blank for you to fill in.
+
+An acknowledged change **still appears in the report**, under its own heading,
+with the reason and who signed it. An acknowledgement is a decision on the
+record, not a delete key — if signing off made drift vanish, the file would rot
+into a list of things nobody remembers agreeing to. Fields you omit act as
+wildcards, but `connector` and `type` are always required so nothing can be
+blanket-suppressed by accident. `expires` is optional; a lapsed entry stops
+applying and says so.
 
 Rename detection is deterministic. A rename usually preserves the parameter
 surface exactly, and an identical surface is much stronger evidence than a

@@ -15,6 +15,7 @@ import { buildLock, readLock, listLocked } from './lock.js';
 import { diffLocks } from './diff.js';
 import { readIndex, affectedSkills } from './skills.js';
 import { renderMarkdown, suggestPatch } from './report.js';
+import { VERSION } from './version.js';
 
 const TOOLS = [
   {
@@ -61,7 +62,7 @@ const TOOLS = [
 const text = (value) => ({ content: [{ type: 'text', text: value }] });
 
 export async function startServer(dir = process.cwd()) {
-  const server = new Server({ name: 'tether', version: '0.1.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'tether', version: VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
