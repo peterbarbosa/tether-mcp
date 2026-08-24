@@ -5,6 +5,22 @@ that makes it. Ideas that have not landed live in [BACKLOG.md](BACKLOG.md).
 
 ## Unreleased
 
+### Ready to publish
+
+The package has never been on npm, so every `npx tether-mcp` in the docs has
+been a 404 and the quick start carries a run-from-source workaround. Two things
+were wrong with the payload:
+
+- **Agent instructions were shipping.** The five subdirectory `CLAUDE.md` files
+  are for working *on* Tether, not for consuming it, and they rode along because
+  their directories are listed in `files`. Excluded — the tarball is now 22
+  files, 38.4 kB.
+- **A broken build was publishable.** `prepublishOnly` now runs the suite.
+  "Could not check is not a pass" applies to releasing too; verified by
+  publishing a deliberately failing tree and watching it refuse.
+
+Publishing itself still needs `npm login` under an account that owns the name.
+
 ### A synthetic MCP fixture server, and the branches it reached for the first time
 
 Every lockfile in this repo is a toy: flat tools, one page, no credentials. So
