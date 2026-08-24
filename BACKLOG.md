@@ -30,9 +30,28 @@ Things the README already admits. Each is a place Tether under-reports.
 
 ## Near-term
 
-- **Assert the plugin version matches package.json in CI.** The one remaining
-  hand-maintained version. It is exactly the drift Tether complains about, in
-  Tether. See [.claude-plugin/CLAUDE.md](.claude-plugin/CLAUDE.md).
+- **Validate against a large, authenticated connector.** Every lockfile we hold
+  is a toy: 19 tools across three connectors, zero nested schemas, zero
+  authentication, zero paginated responses. Pagination, `principalHint` and the
+  deep schema walk have therefore never executed against a real server — they
+  are tested, not proven. Doing this first points everything below it at
+  reality instead of assumption.
+- **A synthetic MCP fixture server for tests.** One in-repo server that
+  paginates, nests, stalls on demand and varies its tool set by credential.
+  The `complete: false` branch — an incomplete snapshot warning instead of
+  reporting mass removals — is correctness-critical and has no execution
+  coverage at all. Deterministic, and it does not depend on a third party
+  staying up.
+- **Retries, and a verified HTTP timeout path.** The stdio timeout works:
+  measured, a 3s limit aborts a mute server at ~5s. The HTTP path is
+  unverified — closing a transport may not abort an in-flight fetch, so a
+  stalled remote could hang the Monday job until GitHub's six-hour limit. There
+  is no retry either, so one transient failure paints the scheduled run red,
+  and a flaky alert gets muted.
+- **Version the `tether:` manifest block.** `lockfileVersion` earned its keep
+  the moment the surface changed shape. The manifest has no equivalent, and it
+  is the schema we are asking other orgs to adopt. Cheap now, awkward once
+  anyone depends on it.
 - **`tether ack` subcommand.** `check` already prints a paste-ready entry;
   writing it into `acknowledged.json` should not be manual. Keep the reason
   mandatory — the friction that matters is *stating why*, not editing JSON.
@@ -46,6 +65,20 @@ Things the README already admits. Each is a place Tether under-reports.
 
 ## Bigger bets
 
+- **Manifest authoring at scale.** Tier 2 is the differentiator and it needs a
+  manifest per skill. Nobody hand-writes 500, so the differentiating feature
+  currently has no adoption path. This is the one place a model earns its keep —
+  a `/tether-manifest` command where the agent already running Tether proposes
+  the block and a human reviews it, keeping the tool itself deterministic and
+  key-free. Bulk proposal has to stay reviewable, or it becomes exactly the
+  rubber stamp `acknowledged.json` was built to avoid.
+- **Lockfile readability at scale.** Measured ~1.4 KB per tool, so a 100-tool
+  connector is a ~137 KB lockfile and 200 tools is ~273 KB. The README calls the
+  lockfile "designed to be read in a pull request". It may well be fine — the
+  diff is what gets reviewed, not the whole file — but if it is not, the fixes
+  (split the normalized surface from the verbatim schemas, or drop the schemas
+  entirely) are format changes, and those get more expensive with every adopter.
+  Answer it with data from the validation above rather than by guessing.
 - **Drift budgets.** Fail the build on breaking changes but let warnings
   accumulate to a threshold, so a noisy connector doesn't train people to ignore
   the report.
