@@ -24,10 +24,11 @@ export function buildLock(snapshot) {
       const surface = surfaceOf(tool);
       return {
         name: tool.name,
-        // Covers the derived surface too, not just the raw tool. The differ
-        // short-circuits on this digest, so anything the differ reads must be
-        // inside it -- otherwise a change in how Tether derives the surface
-        // would silently skip every tool.
+        // Covers the derived surface too, not just the raw tool. This is a
+        // review aid, not a fast path -- the differ deliberately compares
+        // content instead (see diff.js). Including the surface means a change
+        // in how Tether derives it shows up as a diff in the pull request,
+        // rather than the lock reading as unchanged while its meaning moved.
         digest: digest({ tool, surface }),
         title: tool.title,
         description: tool.description,

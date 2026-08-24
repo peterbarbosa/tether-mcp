@@ -275,7 +275,7 @@ One file per connector in `.tether/`, designed to be read in a pull request.
 
 ```jsonc
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 2,
   "connector": { "id": "linear", "transport": "http", "serverInfo": {...} },
   "scope": { "authMode": "credentialed", "principalHint": "9f2a1c…", "complete": true },
   "digest": "sha256:…",
@@ -354,10 +354,13 @@ whether the skill produces good output.
 
 ## Limits worth knowing
 
-- The surface walks top-level parameters only. Drift inside a nested object is
-  not yet visible.
-- `$ref` is recorded as an opaque type string, so a change *behind* a ref is not
-  detected.
+- The schema walk stops at depth 6. A parameter nested deeper than that is not
+  compared; the tool is marked `truncated` so the gap stays visible rather than
+  passing as clean.
+- Only same-document `$ref`s are followed. A ref across files or to a remote URL
+  is recorded as `unresolvedRef` — Tether reports that it could not see inside,
+  rather than treating it as an empty schema. A recursive type is recorded as
+  `cyclicRef` at the point the walk stops.
 - Instance resolution needs a probe that enumerates. Servers that only return one
   prose blob are matched by substring and reported as low confidence.
 - If two connectors expose a tool with the same name, an undeclared skill that
@@ -374,7 +377,7 @@ TypeScript, no bundler — `npx tether-mcp` runs the source directly, so a domai
 team can fork and patch it without a toolchain.
 
 ```bash
-npm test    # 88 tests, no network required
+npm test    # 117 tests, no network required
 ```
 
 MIT.

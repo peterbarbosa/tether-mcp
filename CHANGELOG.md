@@ -5,6 +5,26 @@ that makes it. Ideas that have not landed live in [BACKLOG.md](BACKLOG.md).
 
 ## Unreleased
 
+### Documentation corrected to match the code
+
+The README's *Limits worth knowing* still described the pre-v2 walker — it told
+readers that nested drift was invisible and that `$ref` was an opaque string,
+both of which 0.2.0 fixed. A limits list that overstates the blind spots is the
+same failure as one that hides them: the doc is the interface, and it was
+lying in both directions.
+
+It now states the limits that are real — the depth-6 cutoff surfacing as
+`truncated`, and same-document-only `$ref` resolution surfacing as
+`unresolvedRef` / `cyclicRef`.
+
+Also corrected: the lockfile example carried `"lockfileVersion": 1` after the
+format moved to 2, and the test count was three releases stale.
+
+A comment in `src/lock.js` claimed the differ short-circuits on the per-tool
+digest. It does not, deliberately — `src/diff.js` compares content because a
+hand-edited lockfile's digest cannot be trusted. The comment now says why the
+surface is in the digest anyway: so deriving it differently shows up in review.
+
 ### Repo documentation
 
 `CLAUDE.md` at the root and in every subdirectory, so an agent working here can
