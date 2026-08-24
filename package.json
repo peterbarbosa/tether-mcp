@@ -14,13 +14,15 @@
     "commands",
     ".claude-plugin",
     "README.md",
-    "examples"
+    "examples",
+    "!**/CLAUDE.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"

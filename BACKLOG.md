@@ -28,6 +28,11 @@ Things the README already admits. Each is a place Tether under-reports.
   `search` is attributed to every connector exposing one. Declaring
   `connectors:` fixes it; the nudge to declare could be louder in the report.
 
+- **A conforming server cannot return a bare array `outputSchema`.** The MCP
+  spec pins `outputSchema.type` to `object`, so output arrays always arrive
+  one level in (`users[].id`). The walker handles the bare `[].id` form
+  anyway. Harmless, but it is dead defensive code and worth deciding on.
+
 ## Near-term
 
 - **Validate against a large, authenticated connector.** Every lockfile we hold
@@ -36,12 +41,11 @@ Things the README already admits. Each is a place Tether under-reports.
   deep schema walk have therefore never executed against a real server — they
   are tested, not proven. Doing this first points everything below it at
   reality instead of assumption.
-- **A synthetic MCP fixture server for tests.** One in-repo server that
-  paginates, nests, stalls on demand and varies its tool set by credential.
-  The `complete: false` branch — an incomplete snapshot warning instead of
-  reporting mass removals — is correctness-critical and has no execution
-  coverage at all. Deterministic, and it does not depend on a third party
-  staying up.
+- **Point the fixture server at the HTTP transport.** The fixture is stdio
+  only, so it verified the stdio timeout and left the HTTP one exactly as
+  unproven as before. Teaching it to serve Streamable HTTP is the cheap way to
+  close that, and it is a precondition for the retry work below rather than a
+  separate errand.
 - **Retries, and a verified HTTP timeout path.** The stdio timeout works:
   measured, a 3s limit aborts a mute server at ~5s. The HTTP path is
   unverified — closing a transport may not abort an in-flight fetch, so a
