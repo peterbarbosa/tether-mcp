@@ -1,5 +1,9 @@
 # Tether
 
+[![npm](https://img.shields.io/npm/v/tether-mcp)](https://www.npmjs.com/package/tether-mcp)
+[![CI](https://github.com/peterbarbosa/tether-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/peterbarbosa/tether-mcp/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/tether-mcp)](LICENSE)
+
 **Know when your MCP connectors drift out from under your agent skills.**
 
 Agent skills — reusable Markdown procedures that tell an agent how to do a job —
@@ -54,6 +58,8 @@ moved.
 
 - `create_issue` now requires `teamId`. Agents that omitted it will start guessing a value.
   - **Suggested edit:** pass `teamId` explicitly when calling `create_issue`; do not let the agent infer it
+- Tool `search_issues` appears to have been renamed to `find_issues` (high confidence).
+  - **Suggested edit:** replace `search_issues` with `find_issues`
 ```
 
 Exit codes: `0` clean, `1` breaking drift, `2` **could not check**.
@@ -316,6 +322,11 @@ code cannot be driven by drift that was never real. It exits 2.
 
 A ready-made workflow is in [`.github/workflows/tether.yml`](.github/workflows/tether.yml).
 
+For a build you want reproducible, pin it rather than resolving `latest` on
+every run: `npm install --save-dev tether-mcp`, then `npx tether-mcp check`
+uses the version in your lockfile. A drift checker that silently changes
+version between runs is its own small joke.
+
 **Claude plugin** — so an agent can check drift mid-task.
 
 - Skill `tether` — the agent runs a check, reads the report, and finds the skills
@@ -369,5 +380,10 @@ team can fork and patch it without a toolchain.
 ```bash
 npm test    # 135 tests, no network required
 ```
+
+Released changes are in [CHANGELOG.md](CHANGELOG.md). Ideas that have not landed
+— including the known gaps above and what would close them — are in
+[BACKLOG.md](BACKLOG.md). [CLAUDE.md](CLAUDE.md) maps the repo and lists the
+invariants a change must not break.
 
 MIT.
