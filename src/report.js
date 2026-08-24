@@ -3,6 +3,7 @@
 import { BREAKING, WARNING } from './diff.js';
 import { affectedSkills } from './skills.js';
 import { RESOLVED, MISSING, SKIPPED, ERROR, DRY_RUN } from './probe.js';
+import { entryFor } from './acknowledged.js';
 
 const ICON = { breaking: '🔴', warning: '🟡', info: '⚪' };
 const code = (v) => '`' + v + '`';
@@ -84,7 +85,12 @@ export function renderMarkdown(reports, index = null) {
   }
 
   const compared = reports.length - uncheckable;
-  const suffix = uncheckable ? ` ${plural(uncheckable, 'connector')} could not be checked.` : '';
+  const signedOff = reports.reduce((n, r) => n + (r.acknowledged?.length ?? 0), 0);
+  // "No drift" would be a lie while an acknowledged change is sitting in the
+  // report below it. Say what was set aside, and by whose decision.
+  const suffix =
+    (uncheckable ? ` ${plural(uncheckable, 'connector')} could not be checked.` : '') +
+    (signedOff ? ` ${plural(signedOff, 'change')} previously acknowledged.` : '');
   lines.push(
     breaking
       ? `**${plural(breaking, 'breaking change')}** across ${plural(compared, 'connector')}.${suffix}`
@@ -136,12 +142,53 @@ export function renderMarkdown(reports, index = null) {
     lines.push('');
   }
 
+  lines.push(...acknowledgedSection(reports));
   lines.push(...affectedSection(reports, index));
 
   if (breaking) {
-    lines.push('---', '', 'Review the affected skills, then run `tether snapshot` to accept the new state.', '');
+    lines.push(
+      '---', '',
+      'Review the affected skills, then run `tether snapshot` to accept the new state.',
+      '',
+      'If a change is fine as it stands, record that decision instead of re-snapshotting —',
+      '`tether snapshot` accepts everything, including drift nobody has looked at. Add to',
+      '`.tether/acknowledged.json`:', '',
+      '```json',
+      JSON.stringify(
+        {
+          acknowledgedVersion: 1,
+          entries: reports.flatMap((r) =>
+            r.changes.filter((c) => c.severity === BREAKING).map((c) => entryFor(c, r.connector))
+          )
+        },
+        null,
+        2
+      ),
+      '```', ''
+    );
   }
   return lines.join('\n');
+}
+
+/**
+ * Changes a human has already signed off.
+ *
+ * These are still shown. An acknowledgement is a decision on the record, not a
+ * delete key -- if signing off made drift disappear from the report, the file
+ * would rot into a list of things nobody remembers agreeing to.
+ */
+function acknowledgedSection(reports) {
+  const signed = reports.flatMap((r) => (r.acknowledged ?? []).map((c) => ({ ...c, connector: r.connector })));
+  if (!signed.length) return [];
+
+  const lines = ['## Acknowledged', '', `${plural(signed.length, 'change')} previously reviewed and accepted.`, ''];
+  for (const change of signed) {
+    lines.push(`- ${describe(change)}`);
+    const who = change.acknowledgedBy ? ` — ${change.acknowledgedBy}` : '';
+    lines.push(`  - ${change.reason ?? 'no reason recorded'}${who}`);
+  }
+  lines.push('');
+  return lines;
 }
 
 /** "Which skills does this break, and what should change in each?" */
@@ -174,6 +221,7 @@ export const renderJson = (reports, index = null) =>
     {
       breaking: count(reports, BREAKING),
       warnings: count(reports, WARNING),
+      acknowledged: reports.reduce((n, r) => n + (r.acknowledged?.length ?? 0), 0),
       connectors: reports,
       affected: index
         ? [...affectedSkills(index, reports).entries()].map(([path, entry]) => ({
