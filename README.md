@@ -29,16 +29,6 @@ references no longer resolve is a broken build.
 Tether reads the `.mcp.json` your project already has. There is nothing to
 configure.
 
-> **Not published to npm yet.** Until then, run it from source:
->
-> ```bash
-> git clone https://github.com/peterbarbosa/tether-mcp
-> cd tether-mcp && npm install
-> node bin/tether.js --help
-> ```
->
-> Read every `npx tether-mcp` below as `node /path/to/tether-mcp/bin/tether.js`.
-
 ```bash
 npx tether-mcp list        # what Tether can see
 npx tether-mcp snapshot    # capture the current surface into .tether/

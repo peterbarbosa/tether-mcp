@@ -5,11 +5,15 @@ that makes it. Ideas that have not landed live in [BACKLOG.md](BACKLOG.md).
 
 ## Unreleased
 
-### Ready to publish
+### Published to npm
 
-The package has never been on npm, so every `npx tether-mcp` in the docs has
-been a 404 and the quick start carries a run-from-source workaround. Two things
-were wrong with the payload:
+[`tether-mcp@0.2.0`](https://www.npmjs.com/package/tether-mcp) is on the
+registry. Every `npx tether-mcp` in the docs was a 404 until now, and the quick
+start carried a run-from-source workaround in place of an install line. Both are
+gone — verified by installing from the registry into an empty directory and
+running `list`, `snapshot` and `check` against a live connector.
+
+Two things were wrong with the payload and were fixed before it went out:
 
 - **Agent instructions were shipping.** The five subdirectory `CLAUDE.md` files
   are for working *on* Tether, not for consuming it, and they rode along because
@@ -19,7 +23,8 @@ were wrong with the payload:
   "Could not check is not a pass" applies to releasing too; verified by
   publishing a deliberately failing tree and watching it refuse.
 
-Publishing itself still needs `npm login` under an account that owns the name.
+The release itself was published by hand, which npm now requires a 2FA prompt
+for. Moving that to OIDC trusted publishing from CI is in the backlog.
 
 ### A synthetic MCP fixture server, and the branches it reached for the first time
 

@@ -101,8 +101,9 @@ node bin/tether.js allowlist # propose probeable tools for human review
 node bin/tether.js resolve --dry-run
 ```
 
-Not published to npm yet — read every `npx tether-mcp` in the docs as
-`node bin/tether.js`.
+Published as [`tether-mcp`](https://www.npmjs.com/package/tether-mcp). The docs
+use `npx tether-mcp`; working in this repo, run `node bin/tether.js` so you are
+exercising the checkout rather than the registry.
 
 ## House style
 
