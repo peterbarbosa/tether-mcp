@@ -1,5 +1,24 @@
 # Changelog
 
+All notable user-visible changes. Every change lands here in the same commit
+that makes it. Ideas that have not landed live in [BACKLOG.md](BACKLOG.md).
+
+## Unreleased
+
+### Repo documentation
+
+`CLAUDE.md` at the root and in every subdirectory, so an agent working here can
+navigate the repo and — more importantly — knows which invariants it must not
+break: byte-stable lockfiles, one `callTool` site, three gates before any probe,
+annotations as evidence rather than authority, and exit `2` never collapsing
+into `0`.
+
+Added `BACKLOG.md`, including a *Rejected, and why* section so settled design
+arguments are not relitigated.
+
+Removed two empty files (`git`, `node`) committed by accident during release
+prep — stray shell redirects, never referenced by anything.
+
 ## 0.2.0
 
 **The lockfile format is now v2. Run `tether snapshot` once after upgrading.**
