@@ -1,6 +1,6 @@
 {
   "name": "tether-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lockfile and drift checker for MCP connectors and agent skills. tools/list is the lockfile; tether check is npm outdated.",
   "license": "MIT",
   "type": "module",
@@ -32,5 +32,13 @@
     "lockfile",
     "agent-skills",
     "claude"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peterbarbosa/tether-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/peterbarbosa/tether-mcp/issues"
+  },
+  "homepage": "https://github.com/peterbarbosa/tether-mcp#readme"
 }

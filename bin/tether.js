@@ -16,6 +16,7 @@ import {
   loadAllowlist, isAllowed, proposeAllowlist, writeProposal, allowedCount, proposalPath, allowlistPath
 } from '../src/allowlist.js';
 import { resolveIdentifier } from '../src/probe.js';
+import { VERSION } from '../src/version.js';
 import { loadAcknowledged, applyAcknowledgements, expiredEntries, acknowledgedPath } from '../src/acknowledged.js';
 import {
   renderMarkdown, renderJson, exitCode,
@@ -117,7 +118,7 @@ async function snapshot() {
       const lock = buildLock(await snapshotConnector(connector, { timeoutMs }));
       writeLock(dir, lock, {
         capturedAt: new Date().toISOString(),
-        tetherVersion: '0.1.0',
+        tetherVersion: VERSION,
         source: connector.source
       });
       note(`snapshot ${connector.id}: ${lock.tools.length} tools, ${lock.resources.length} resources`);

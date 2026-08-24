@@ -21,6 +21,7 @@ import { buildLock, serializeLock } from '../src/lock.js';
 import { lockOf, tool } from './helpers.js';
 
 const CLI = fileURLToPath(new URL('../bin/tether.js', import.meta.url));
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const run = (dir, args) => spawnSync(process.execPath, [CLI, '--dir', dir, ...args], { encoding: 'utf8' });
 const temp = () => mkdtempSync(join(tmpdir(), 'tether-reg-'));
 const write = (dir, path, content) => {
@@ -182,4 +183,25 @@ test('check warns when the skill index is stale', () => {
   const r = run(dir, ['check']);
   assert.match(r.stderr, /skill index is stale/);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('the version is single-sourced and the plugin manifest agrees', async () => {
+  // It used to be hardcoded in five places, which is exactly the drift this
+  // project exists to complain about.
+  const { VERSION } = await import('../src/version.js');
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const plugin = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+  assert.equal(VERSION, pkg.version);
+  assert.equal(plugin.version, pkg.version, 'plugin.json and package.json must not drift apart');
+
+  for (const file of ['bin/tether.js', 'src/client.js', 'src/server.js']) {
+    const text = readFileSync(join(ROOT, file), 'utf8');
+    assert.ok(!/['"]\d+\.\d+\.\d+['"]/.test(text), `${file} hardcodes a version string`);
+  }
+});
+
+test('the packaged manifest points at the repository', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  assert.match(pkg.repository.url, /tether-mcp/);
+  assert.ok(pkg.bugs?.url && pkg.homepage);
 });

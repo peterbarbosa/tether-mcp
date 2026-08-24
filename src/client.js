@@ -13,6 +13,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { authModeOf, principalHint } from './config.js';
 import { isAllowed } from './allowlist.js';
+import { VERSION } from './version.js';
 
 const MAX_PAGES = 100;
 
@@ -51,7 +52,7 @@ async function listAll(fetchPage, key) {
  * Returns the snapshot shape that `buildLock` consumes.
  */
 export async function snapshotConnector(connector, { timeoutMs = 30000 } = {}) {
-  const client = new Client({ name: 'tether', version: '0.1.0' }, { capabilities: {} });
+  const client = new Client({ name: 'tether', version: VERSION }, { capabilities: {} });
   const transport = transportFor(connector);
   const timer = setTimeout(() => transport.close?.(), timeoutMs);
 
@@ -104,7 +105,7 @@ export async function withConnectors(connectors, allowlist, fn) {
   try {
     for (const connector of connectors) {
       try {
-        const client = new Client({ name: 'tether', version: '0.1.0' }, { capabilities: {} });
+        const client = new Client({ name: 'tether', version: VERSION }, { capabilities: {} });
         await client.connect(transportFor(connector));
         open.set(connector.id, client);
       } catch (error) {

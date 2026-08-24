@@ -1,6 +1,6 @@
 {
   "name": "tether",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Know when your MCP connectors drift out from under your agent skills.",
   "keywords": [
     "mcp",
