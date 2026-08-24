@@ -56,6 +56,89 @@ function typeOf(schema) {
   return 'unknown';
 }
 
+/** How deep the walker descends before giving up and saying so. */
+export const MAX_SCHEMA_DEPTH = 6;
+
+/** Decode one JSON Pointer token (RFC 6901). */
+const decodeToken = (token) => token.replace(/~1/g, '/').replace(/~0/g, '~');
+
+/**
+ * Follow a local `$ref` to the node it names.
+ *
+ * Only same-document refs are followed. A remote or unresolvable ref is
+ * reported rather than silently treated as an empty schema, because "we could
+ * not see inside this" and "there is nothing inside this" are very different
+ * claims for a drift checker to make.
+ */
+function deref(node, root, seen) {
+  let current = node;
+  for (let hop = 0; current && typeof current === 'object' && typeof current.$ref === 'string'; hop++) {
+    const ref = current.$ref;
+    if (seen.has(ref)) return { schema: current, cyclic: ref };
+    if (!ref.startsWith('#/') || hop > 10) return { schema: current, unresolved: ref };
+    seen.add(ref);
+    const target = ref
+      .slice(2)
+      .split('/')
+      .reduce((node, token) => (node == null ? node : node[decodeToken(token)]), root);
+    if (target == null || typeof target !== 'object') return { schema: current, unresolved: ref };
+    current = target;
+  }
+  return { schema: current };
+}
+
+/**
+ * Flatten a JSON Schema into dotted parameter paths.
+ *
+ *   { fields: { type: object, properties: { teamId, title }, required: [teamId] } }
+ *     ->  fields          (object, required per its own parent)
+ *         fields.teamId   (string, required)
+ *         fields.title    (string, optional)
+ *
+ * Array element schemas get a `[]` segment, so an array of objects reads as
+ * `items[].id`. `required` on an entry means "required within its parent
+ * object" -- whether the parent itself is required is that parent's own entry.
+ * The two compose, and each is separately checkable.
+ */
+export function flattenSchema(schema, root = schema, maxDepth = MAX_SCHEMA_DEPTH) {
+  const params = {};
+  let truncated = false;
+
+  const visit = (node, prefix, depth, seen) => {
+    if (depth > maxDepth) {
+      truncated = true;
+      return;
+    }
+    const { schema: resolved } = deref(node, root, new Set(seen));
+    if (!resolved || typeof resolved !== 'object') return;
+
+    const required = new Set(resolved.required ?? []);
+    for (const name of Object.keys(resolved.properties ?? {}).sort()) {
+      const child = resolved.properties[name];
+      const path = prefix ? `${prefix}.${name}` : name;
+      const branch = new Set(seen);
+      const { schema: target, unresolved, cyclic } = deref(child, root, branch);
+      params[path] = {
+        type: typeOf(target ?? child),
+        required: required.has(name),
+        ...(target?.enum ? { enum: target.enum } : {}),
+        ...(unresolved ? { unresolvedRef: unresolved } : {}),
+        ...(cyclic ? { cyclicRef: cyclic } : {})
+      };
+      // Descend into the *resolved* node. Passing the raw `$ref` node would
+      // make visit dereference it a second time against a branch that already
+      // contains that ref, tripping the cycle guard one level too early and
+      // hiding the contents of every recursive type.
+      if (!unresolved && !cyclic) visit(target ?? child, path, depth + 1, branch);
+    }
+
+    if (resolved.items) visit(resolved.items, `${prefix}[]`, depth + 1, new Set(seen));
+  };
+
+  visit(schema, '', 0, new Set());
+  return { params, truncated };
+}
+
 /**
  * The normalized projection the differ actually reads.
  *
@@ -63,25 +146,20 @@ function typeOf(schema) {
  * constraint can be written three equivalent ways. The surface reduces a tool
  * to the facts a skill can actually depend on: which parameters exist, their
  * type, whether they are required, and what values they accept.
- *
- * v0 walks top-level properties only. Nested object drift is v0.2.
  */
 export function surfaceOf(tool) {
   const schema = tool.inputSchema ?? {};
   const required = [...(schema.required ?? [])].sort();
-  const params = {};
-  for (const name of Object.keys(schema.properties ?? {}).sort()) {
-    const prop = schema.properties[name];
-    params[name] = {
-      type: typeOf(prop),
-      required: required.includes(name),
-      ...(prop?.enum ? { enum: prop.enum } : {})
-    };
-  }
-  const outputs = Object.keys(tool.outputSchema?.properties ?? {}).sort();
+  const input = flattenSchema(schema, schema);
+  // Output fields are flattened the same way, so an array-returning tool --
+  // the MCP spec's own `list_users` example -- yields `[].id` rather than the
+  // empty list that made output drift invisible.
+  const output = tool.outputSchema ? flattenSchema(tool.outputSchema, tool.outputSchema) : { params: {} };
+  const outputs = Object.keys(output.params).sort();
   return {
     required,
-    params,
+    params: input.params,
+    ...(input.truncated || output.truncated ? { truncated: true } : {}),
     outputs,
     // How confident Tether is that this tool is safe to probe. `readOnlyHint`
     // is server-controlled and the spec says clients MUST treat annotations as

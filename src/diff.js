@@ -20,6 +20,20 @@ export function diffLocks(before, after) {
   const changes = [];
   const add = (severity, type, fields) => changes.push({ severity, type, ...fields });
 
+  // Lockfile version is checked before anything else. Comparing surfaces built
+  // by different versions of the walker would report every newly-visible nested
+  // field as an addition -- hundreds of changes, none of them real. Refusing is
+  // the only honest answer.
+  if ((before.lockfileVersion ?? 1) !== (after.lockfileVersion ?? 1)) {
+    return {
+      connector: after.connector?.id ?? before.connector?.id,
+      lockfileOutdated: { from: before.lockfileVersion ?? 1, to: after.lockfileVersion ?? 1 },
+      severity: null,
+      breaking: 0,
+      changes: []
+    };
+  }
+
   // Scope is checked first, and it short-circuits. Snapshots taken under
   // different credentials are not comparable -- reporting 200 phantom removals
   // because CI used a service account is exactly how a checker gets switched

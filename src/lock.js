@@ -7,7 +7,10 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { join } from 'node:path';
 import { digest, stripVolatile, surfaceOf } from './canonical.js';
 
-export const LOCKFILE_VERSION = 1;
+// 2: the surface walks nested objects, resolves $ref, and flattens array
+// outputs. A v1 lock cannot be compared against a v2 snapshot -- every nested
+// field would read as newly added -- so the differ refuses rather than floods.
+export const LOCKFILE_VERSION = 2;
 export const LOCK_DIR = '.tether';
 
 export const lockPath = (dir, id) => join(dir, LOCK_DIR, `${id}.lock.json`);

@@ -75,7 +75,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export function renderMarkdown(reports, index = null) {
   const breaking = count(reports, BREAKING);
   const warnings = count(reports, WARNING);
-  const uncheckable = reports.filter((r) => r.error || r.scopeMismatch).length;
+  const uncheckable = reports.filter((r) => r.error || r.scopeMismatch || r.lockfileOutdated).length;
   const lines = ['# Tether drift report', ''];
 
   if (!reports.length) {
@@ -101,6 +101,18 @@ export function renderMarkdown(reports, index = null) {
   for (const report of reports) {
     if (report.error) {
       lines.push(`## ${report.connector} — unreachable`, '', report.error, '');
+      continue;
+    }
+    if (report.lockfileOutdated) {
+      lines.push(
+        `## ${report.connector} — lockfile out of date`, '',
+        `This lockfile is v${report.lockfileOutdated.from}; Tether now writes v${report.lockfileOutdated.to}.`,
+        'The newer format sees inside nested objects, `$ref` indirection and array outputs, so the',
+        'two cannot be compared without reporting every newly-visible field as an addition.',
+        '',
+        'Run `tether snapshot` to re-capture, then review that diff on its own before trusting',
+        'the next check — it will contain drift that was previously invisible.', ''
+      );
       continue;
     }
     if (report.scopeMismatch) {
@@ -182,7 +194,7 @@ export function exitCode(reports) {
   // 2 covers everything Tether could not actually check. A scope mismatch
   // belongs here: comparing snapshots taken under different credentials is not
   // a clean result, it is no result.
-  if (reports.some((r) => r.error || r.scopeMismatch)) return 2;
+  if (reports.some((r) => r.error || r.scopeMismatch || r.lockfileOutdated)) return 2;
   if (reports.some((r) => r.breaking > 0)) return 1;
   return 0;
 }
