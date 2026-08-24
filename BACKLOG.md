@@ -61,9 +61,10 @@ Things the README already admits. Each is a place Tether under-reports.
   mandatory — the friction that matters is *stating why*, not editing JSON.
 - **Report expiring acknowledgements before they lapse.** A lapsed entry
   currently surprises you on the day it breaks the build. Warn at N days.
-- **Publish to npm.** The README carries a run-from-source workaround in place
-  of a quick start. Every doc says "read `npx tether-mcp` as `node bin/…`",
-  which is a tax on every reader.
+- **Trusted publishing from CI.** `0.2.0` went out by hand, which meant a 2FA
+  prompt and a human at a keyboard. npm is closing the token path after January
+  2027, so OIDC on a `v*` tag is the direction anyway — and it brings provenance
+  attestation with it. Worth doing before the next release rather than after.
 - **`--since` on check.** Diff against a git ref rather than the working
   lockfile, so a PR can report what *this branch* changed.
 
