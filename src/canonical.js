@@ -152,8 +152,10 @@ export function surfaceOf(tool) {
   const required = [...(schema.required ?? [])].sort();
   const input = flattenSchema(schema, schema);
   // Output fields are flattened the same way, so an array-returning tool --
-  // the MCP spec's own `list_users` example -- yields `[].id` rather than the
-  // empty list that made output drift invisible.
+  // the MCP spec's own `list_users` example -- yields `users[].id` rather than
+  // the empty list that made output drift invisible. The spec requires
+  // `outputSchema.type` to be `object`, so the array always arrives one level
+  // in; a bare `[].id` is handled but no conforming server can produce it.
   const output = tool.outputSchema ? flattenSchema(tool.outputSchema, tool.outputSchema) : { params: {} };
   const outputs = Object.keys(output.params).sort();
   return {

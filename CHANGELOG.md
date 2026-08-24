@@ -5,6 +5,47 @@ that makes it. Ideas that have not landed live in [BACKLOG.md](BACKLOG.md).
 
 ## Unreleased
 
+### A synthetic MCP fixture server, and the branches it reached for the first time
+
+Every lockfile in this repo is a toy: flat tools, one page, no credentials. So
+the code that *produces* a snapshot — connect, follow `nextCursor` to
+exhaustion, decide whether the result is complete — had unit tests around its
+inputs and no execution coverage at all. The branches with none were the ones
+that matter most on a large connector.
+
+`test/fixtures/mcp-server.js` is a real stdio MCP server that misbehaves on
+request, configured through `TETHER_FIXTURE_*` env vars on an ordinary
+connector spec. Tests reach it through `snapshotConnector` by the same path
+production takes — no mocking past the client. The suite stays offline; the
+transport is a child process, not a socket.
+
+Newly executed, in some cases for the first time:
+
+- **`complete: false`** — a server that never stops paginating now provably
+  yields an incomplete snapshot rather than a short one silently locked as
+  whole. This was correctness-critical and entirely unexercised.
+- **Pagination** — a 7-tool surface split into pages assembles to the same
+  bytes as the same surface served in one.
+- **Credential-scoped tool sets** — a snapshot taken with a token and a check
+  run without one now demonstrably report a scope mismatch instead of a
+  phantom removal.
+- **The stdio timeout** — a server that accepts the connection and then answers
+  nothing fails inside its budget instead of hanging.
+- **A server that advertises resources and then refuses them** — degrades to
+  "no resources" without losing the tool drift alongside it.
+- **The schema walk against schemas Tether did not author** — nesting, depth
+  cutoff, `$ref`, a self-referential type, and an unresolvable ref.
+
+Two things the fixture corrected on contact:
+
+- MCP requires `outputSchema.type` to be `object`, so a conforming server
+  cannot return a bare top-level array. Output arrays arrive one level in and
+  flatten to `users[].id`. A comment in `src/canonical.js` claiming `[].id`
+  described a shape no real server can send.
+- `node --test` sweeps up every `.js` file under `test/`, so the fixture ran
+  as a test and hung the suite waiting for a client. It now exits unless
+  spawned with `TETHER_FIXTURE=1`.
+
 ### Documentation corrected to match the code
 
 The README's *Limits worth knowing* still described the pre-v2 walker — it told

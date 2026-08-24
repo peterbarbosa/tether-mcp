@@ -377,7 +377,7 @@ TypeScript, no bundler — `npx tether-mcp` runs the source directly, so a domai
 team can fork and patch it without a toolchain.
 
 ```bash
-npm test    # 117 tests, no network required
+npm test    # 135 tests, no network required
 ```
 
 MIT.
