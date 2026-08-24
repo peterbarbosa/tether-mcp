@@ -2,11 +2,21 @@
   "mcpServers": {
     "everything": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ]
     },
     "deepwiki": {
       "type": "http",
       "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "tether": {
+      "command": "node",
+      "args": [
+        "bin/tether.js",
+        "mcp"
+      ]
     }
   }
 }

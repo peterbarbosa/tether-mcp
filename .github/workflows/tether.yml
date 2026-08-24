@@ -1,23 +1,36 @@
 name: MCP drift check
 
+# Drift checking talks to live MCP servers, so it does NOT gate pull requests:
+# a connector being briefly unreachable is not a reason to block someone's
+# change. It runs on a schedule, where a failure means what it should -- the
+# world moved underneath the skills in this repo.
 on:
   schedule:
     - cron: '0 8 * * 1'   # Monday morning, before anyone relies on a stale skill
-  pull_request:
   workflow_dispatch:
 
 jobs:
-  check:
+  drift:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+      - run: npm ci
 
-      - name: Check MCP connectors for drift
-        run: npx tether-mcp check --out drift.md
+      # Run the checked-out source, not `npx tether-mcp`. Pulling the published
+      # package here would test whatever is on the registry rather than what is
+      # in this commit -- and would fail outright until the first release.
+      - name: Check for schema drift
+        run: node bin/tether.js check --out drift.md
+
+      # Only probes a human has put on the allowlist are ever called.
+      - name: Check for instance drift
+        if: always()
+        run: node bin/tether.js resolve --out instance-drift.md
 
       - name: Publish report
         if: always()
-        run: cat drift.md >> "$GITHUB_STEP_SUMMARY"
+        run: cat drift.md instance-drift.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true

@@ -1,0 +1,89 @@
+{
+  "indexVersion": 1,
+  "roots": [
+    "commands",
+    "examples/skills",
+    "skills"
+  ],
+  "lockDigests": {
+    "deepwiki": "sha256:4f23832a68d5ceddffb02cc462da0db7b43252b6dbfcae72584bfa8e75f20b57",
+    "everything": "sha256:eefeda636fdefa74819014c45b8bba3e3ea5677fc693d24159e2a0c9b4c7a79a",
+    "tether": "sha256:b45874ca09799183adb430fc1c28589b12ffd520b82cf233dcd8233c8a06c974"
+  },
+  "skills": [
+    {
+      "path": "commands/tether-check.md",
+      "name": null,
+      "declared": false,
+      "connectors": [],
+      "tools": [],
+      "identifiers": [],
+      "unknownTools": [],
+      "problems": []
+    },
+    {
+      "path": "commands/tether-resolve.md",
+      "name": null,
+      "declared": false,
+      "connectors": [],
+      "tools": [],
+      "identifiers": [],
+      "unknownTools": [],
+      "problems": []
+    },
+    {
+      "path": "examples/skills/research-a-repo/SKILL.md",
+      "name": "research-a-repo",
+      "declared": true,
+      "connectors": [
+        "deepwiki"
+      ],
+      "tools": [
+        {
+          "connector": "deepwiki",
+          "tool": "ask_question",
+          "source": "declared"
+        },
+        {
+          "connector": "deepwiki",
+          "tool": "read_wiki_structure",
+          "source": "declared"
+        }
+      ],
+      "identifiers": [
+        {
+          "id": "sdk-transports-topic",
+          "connector": "deepwiki",
+          "probe": "read_wiki_structure",
+          "match": "result",
+          "value": "Transports",
+          "args": {
+            "repoName": "modelcontextprotocol/typescript-sdk"
+          }
+        },
+        {
+          "id": "sdk-retired-topic",
+          "connector": "deepwiki",
+          "probe": "read_wiki_structure",
+          "match": "result",
+          "value": "Legacy SSE Migration Guide",
+          "args": {
+            "repoName": "modelcontextprotocol/typescript-sdk"
+          }
+        }
+      ],
+      "unknownTools": [],
+      "problems": []
+    },
+    {
+      "path": "skills/tether/SKILL.md",
+      "name": "tether",
+      "declared": false,
+      "connectors": [],
+      "tools": [],
+      "identifiers": [],
+      "unknownTools": [],
+      "problems": []
+    }
+  ]
+}

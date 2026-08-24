@@ -1,0 +1,125 @@
+{
+  "lockfileVersion": 1,
+  "connector": {
+    "id": "tether",
+    "transport": "stdio",
+    "target": "node bin/tether.js mcp",
+    "serverInfo": {
+      "name": "tether",
+      "version": "0.1.0"
+    }
+  },
+  "capabilities": {
+    "tools": {}
+  },
+  "scope": {
+    "authMode": "inherited",
+    "principalHint": null,
+    "complete": true
+  },
+  "digest": "sha256:a711997d13ebad14229e4bc7d586fee37c351e6be14ad24e071d2f9208126b71",
+  "tools": [
+    {
+      "name": "tether_affected_skills",
+      "digest": "sha256:44aac425ede3525952eee82a9e657536466b00c09b6e72cd8d9d34b48b7a4c0b",
+      "title": "Find skills affected by a tool",
+      "description": "Given a connector and tool name, list the indexed skills that reference it. Use before changing or retiring a tool. Read-only, offline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector",
+          "tool"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [
+          "connector",
+          "tool"
+        ],
+        "params": {
+          "connector": {
+            "type": "string",
+            "required": true
+          },
+          "tool": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "tether_check_drift",
+      "digest": "sha256:ab7a5df22ea48ba792b3177b4042a265acbe2a6c03ddaa10bd8cf3c49ad9db4e",
+      "title": "Check MCP connector drift",
+      "description": "Compare every locked MCP connector against its live state and report what changed, which skills are affected, and the suggested edit for each. Read-only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string",
+            "description": "Check only this connector id. Omit to check all."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "surface": {
+        "required": [],
+        "params": {
+          "connector": {
+            "type": "string",
+            "required": false
+          }
+        },
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    },
+    {
+      "name": "tether_list_connectors",
+      "digest": "sha256:95424269685db7b151c7c0ccb4b72504b7ee6dc0003c458c239be78b0bfa6354",
+      "title": "List connectors",
+      "description": "List the MCP connectors Tether can see and whether each one has a committed lockfile.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "surface": {
+        "required": [],
+        "params": {},
+        "outputs": [],
+        "readOnly": "hinted"
+      }
+    }
+  ],
+  "resources": []
+}

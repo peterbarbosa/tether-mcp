@@ -1,16 +1,18 @@
 // Talking to a live MCP server. The only module that touches the network.
 //
-// SAFETY INVARIANT: this module calls `tools/list` and `resources/list` and
-// nothing else. `tools/call` is never imported, referenced, or reachable from
-// any code path here. A drift auditor that files a ticket while checking for
-// drift is worse than no auditor, and that guarantee has to hold by
-// construction rather than by care. test/safety.test.js asserts it.
+// SAFETY INVARIANT: snapshotting calls `tools/list` and `resources/list` and
+// nothing else. Tool invocation exists in exactly one function here --
+// `createToolCaller` -- and it refuses any tool that is not on the
+// human-reviewed allowlist, independently of the resolver's own check. Two
+// gates that do not share code, because a drift auditor that files a ticket
+// while auditing is worse than no auditor. test/safety.test.js asserts both.
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { authModeOf, principalHint } from './config.js';
+import { isAllowed } from './allowlist.js';
 
 const MAX_PAGES = 100;
 
@@ -90,4 +92,47 @@ export async function snapshotConnector(connector, { timeoutMs = 30000 } = {}) {
     clearTimeout(timer);
     await client.close().catch(() => {});
   }
+}
+
+/**
+ * Open connections to several connectors at once and hand back a bounded
+ * `callTool`. Used only by `tether resolve`.
+ */
+export async function withConnectors(connectors, allowlist, fn) {
+  const open = new Map();
+  const failed = new Map();
+  try {
+    for (const connector of connectors) {
+      try {
+        const client = new Client({ name: 'tether', version: '0.1.0' }, { capabilities: {} });
+        await client.connect(transportFor(connector));
+        open.set(connector.id, client);
+      } catch (error) {
+        // One unreachable connector must not erase the findings for the others.
+        // It is recorded and surfaces per identifier as a probe error.
+        failed.set(connector.id, error.message);
+      }
+    }
+    return await fn(createToolCaller(open, allowlist, failed));
+  } finally {
+    for (const client of open.values()) await client.close().catch(() => {});
+  }
+}
+
+/**
+ * The single point in Tether where a tool is invoked.
+ *
+ * This gate is deliberately duplicated from the resolver's own check. They do
+ * not share code, so a mistake in one does not open the other.
+ */
+export function createToolCaller(clients, allowlist, failed = new Map()) {
+  return async function callTool(connectorId, tool, args) {
+    if (!isAllowed(allowlist, connectorId, tool)) {
+      throw new Error(`refusing to call ${connectorId}.${tool}: not on the probe allowlist`);
+    }
+    if (failed.has(connectorId)) throw new Error(`connector unreachable: ${failed.get(connectorId)}`);
+    const client = clients.get(connectorId);
+    if (!client) throw new Error(`no open connection for ${connectorId}`);
+    return client.callTool({ name: tool, arguments: args ?? {} });
+  };
 }

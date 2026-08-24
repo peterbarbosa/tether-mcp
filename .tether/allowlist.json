@@ -1,0 +1,13 @@
+{
+  "allowlistVersion": 1,
+  "_comment": "Tools a human has reviewed and authorized Tether to call. Read-only only.",
+  "connectors": {
+    "deepwiki": {
+      "read_wiki_structure": {
+        "classification": "read-only",
+        "reviewedBy": "peter",
+        "note": "Returns the list of documentation topics for a repo. Enumerates, does not write."
+      }
+    }
+  }
+}
